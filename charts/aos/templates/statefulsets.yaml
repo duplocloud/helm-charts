@@ -1,0 +1,175 @@
+{{- if .Values.grafanaUI.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: grafana-ui
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: grafana-ui
+spec:
+  replicas: {{ .Values.grafanaUI.replicas }}
+  selector:
+    matchLabels:
+      app: grafana-ui
+  serviceName: grafana-ui
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  revisionHistoryLimit: 10
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app: grafana-ui
+      annotations:
+        k8s_grafana_com_scrape: "true"
+        k8s_grafana_com_job: "grafana-metrics"
+        k8s_grafana_com_metrics_path: "/metrics"
+        k8s_grafana_com_metrics_portNumber: "3000"
+    spec:
+      containers:
+        - name: grafana-ui
+          image: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag | default .Values.global.release }}"
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_INSTALL_PLUGINS
+              value: {{ .Values.grafanaUI.plugins | quote }}
+            - name: GF_SERVER_ROOT_URL
+              value: "{{ .Values.global.grafanaProxyUrl }}"
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
+            - name: DOCKER_IMAGE
+              value: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag | default .Values.global.release }}"
+          resources:
+            {{- toYaml .Values.grafanaUI.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+      securityContext:
+        fsGroup: 472
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: grafana-ui
+                topologyKey: kubernetes.io/hostname
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.grafanaUI.volume.size }}
+---
+{{- end }}
+{{- if .Values.duploAutomation.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: duplo-automation
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: duplo-automation
+spec:
+  replicas: {{ .Values.duploAutomation.replicas }}
+  selector:
+    matchLabels:
+      app: duplo-automation
+  serviceName: duplo-automation
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  revisionHistoryLimit: 10
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app: duplo-automation
+    spec:
+      containers:
+        - name: duplo-automation
+          image: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
+          ports:
+            - containerPort: 5000
+          env:
+            - name: GRR_GRAFANA_URL
+              value: "http://grafana-ui:3000"
+            - name: GRR_GRAFANA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
+            - name: GRR_GRAFANA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GRR_MIMIR_ADDRESS
+              value: "http://duplo-metrics-ruler:8080"
+            - name: GRR_MIMIR_TENANT_ID
+              value: "anonymous"
+            - name: GRR_TARGETS
+              value: "Datasource,DashboardFolder,LibraryElement,Dashboard,AlertRuleGroup,AlertNotificationPolicy,AlertContactPoint,PrometheusRuleGroup"
+            - name: GRR_OUTPUT_FORMAT
+              value: "yaml"
+            - name: GRR_ONLY_SPEC
+              value: "false"
+            - name: GRIZZLY_HTTP_TIMEOUT
+              value: "60"
+            - name: MIMIR_RULER
+              value: "http://duplo-metrics-ruler:8080"
+            - name: MIMIR_ADDRESS
+              value: "http://duplo-metrics-nginx"
+            - name: MIMIR_ALERTMANAGER
+              value: "http://duplo-metrics-alertmanager:8080"
+            - name: MIMIR_TENANT_ID
+              value: "anonymous"
+            - name: DOCKER_IMAGE
+              value: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      securityContext:
+        fsGroup: 472
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: duplo-automation
+                topologyKey: kubernetes.io/hostname
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.duploAutomation.volume.size }}
+---
+{{- end }} 

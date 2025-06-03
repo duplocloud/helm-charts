@@ -9,8 +9,6 @@ global:
   release: "2.0.7"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
-  gpgPassphrase: ""
-  grafanaPassword: ""
   
 # Grafana UI settings
 grafanaUI:
@@ -56,8 +54,8 @@ grafanaProxy:
 secrets:
   grafanaUI:
     username: "duplocloud"
-    password: "{{ .Values.global.grafanaPassword }}"
-  gpgPassphrase: "{{ .Values.global.gpgPassphrase }}"
+    password: ""
+  gpgPassphrase: ""
 
 # Integration Job settings
 integrationJob:

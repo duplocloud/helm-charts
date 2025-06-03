@@ -1,0 +1,71 @@
+# Global settings
+global:
+  tenantName: "ref.duplo!tenantname"
+  tenantInfraName: "ref.duplo!tenantinfraname"
+  dnsSuffix: "{{DnsSuffix}}"
+  duploAuthUrl: "{{DuploAuthUrl}}"
+  awsRegion: "{{AwsRegion}}"
+  customerName: "{{CUSTOMER_NAME}}"
+  environment: "{{ENVIRONMENT}}"
+  release: "2.0.7"
+
+# Grafana UI settings
+grafanaUI:
+  enabled: true
+  replicas: 1
+  image: "duplocloud/otel-dashboards"
+  imageTag: "2.0.7"
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+  volume:
+    size: "10Gi"
+  plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
+
+# Duplo Automation settings
+duploAutomation:
+  enabled: true
+  replicas: 1
+  image: "duplocloud/duplo-automation"
+  imageTag: "2.0.7"
+  volume:
+    size: "10Gi"
+
+# Grafana Proxy settings
+grafanaProxy:
+  enabled: true
+  replicas: 1
+  image: "duplocloud/sso-proxy"
+  imageTag: "v2.0.3-otel"
+  resources:
+    limits:
+      cpu: "50m"
+      memory: "128Mi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+
+# Secrets
+secrets:
+  grafanaUI:
+    username: "duplocloud"
+    password: "{{AdminPassword}}"
+  gpgPassphrase: "ZHVwbG8tbG9raS1wYXNzd29yZC1vYnNlcnZhYmlsdHktc2V0dXA="
+
+# Integration Job settings
+integrationJob:
+  enabled: true
+  image: "alpine/k8s"
+  imageTag: "1.32.1"
+
+# Observability Collector CronJob settings
+observabilityCollector:
+  enabled: true
+  schedule: "0 0 * * *"
+  image: "duplocloud/duplo-observability"
+  imageTag: "stable"
+  jobVersion: "2.1.0" 

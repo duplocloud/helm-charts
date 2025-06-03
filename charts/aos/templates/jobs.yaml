@@ -44,7 +44,7 @@ spec:
               git clone --depth=1 https://github.com/duplocloud/opentelemetry-release.git
               sed -i 's/<<SlackChannelName>>/duplo-otel-alerting/g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
               sed -i "s/<<region>>/$REGION/g" opentelemetry-release/integrations/integration-duplo/datasource-duplo-aws.yaml
-              sed -i 's|<<SlackWebhook>>|https://hooks.slack.com/services/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|g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
+              sed -i 's|<<SlackWebhook>>|{{ .Values.global.slackWebhookUrl  }}|g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
               sed -i 's|<<GrafanaURL>>|{{ .Values.global.grafanaProxyUrl }}|g' opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
               sed -i "s|<<DuploPortalName>>|$DUPLO_PORTAL_NAME|g" opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
               cp opentelemetry-release/integrations/integration-duplo/datasource-duplo-aws.yaml opentelemetry-release/integrations/integration-duplo/provisioning/datasource-duplo-aws.yaml

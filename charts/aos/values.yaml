@@ -1,14 +1,17 @@
 # Global settings
 global:
   clusterName: "duploinfra-{{infraName}}"
-  duploAuthUrl: "{{DuploAuthUrl}}"
-  awsRegion: "{{AwsRegion}}"
-  customerName: "{{CUSTOMER_NAME}}"
-  environment: "{{ENVIRONMENT}}"
+  duploAuthUrl: ""
+  awsRegion: ""
+  customerName: ""
+  environment: ""
   namespaceFilter: ".+otel.+"
   release: "2.0.7"
   grafanaProxyUrl: ""
-
+  slackWebhookUrl: ""
+  gpgPassphrase: ""
+  grafanaPassword: ""
+  
 # Grafana UI settings
 grafanaUI:
   enabled: true
@@ -54,7 +57,7 @@ secrets:
   grafanaUI:
     username: "duplocloud"
     password: "{{ .Values.global.grafanaPassword }}"
-  gpgPassphrase: "ZHVwbG8tbG9raS1wYXNzd29yZC1vYnNlcnZhYmlsdHktc2V0dXA="
+  gpgPassphrase: "{{ .Values.global.gpgPassphrase }}"
 
 # Integration Job settings
 integrationJob:

@@ -3,7 +3,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: grafana-ui-data
-  namespace: {{ .Values.global.tenantName }}
+  namespace: {{ $.Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -17,7 +17,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: duplo-automation-data
-  namespace: {{ .Values.global.tenantName }}
+  namespace: {{ $.Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce

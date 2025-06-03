@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: integration-duplo
-  namespace: {{ .Values.global.tenantName }}
+  namespace: {{ $.Release.Namespace }}
 spec:
   backoffLimit: 0
   template:
@@ -45,7 +45,7 @@ spec:
               sed -i 's/<<SlackChannelName>>/duplo-otel-alerting/g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
               sed -i "s/<<region>>/$REGION/g" opentelemetry-release/integrations/integration-duplo/datasource-duplo-aws.yaml
               sed -i 's|<<SlackWebhook>>|https://hooks.slack.com/services/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|g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
-              sed -i 's|<<GrafanaURL>>|grafana-proxy-{{ .Values.global.tenantName }}.{{ .Values.global.dnsSuffix }}|g' opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
+              sed -i 's|<<GrafanaURL>>|{{ .Values.global.grafanaProxyUrl }}|g' opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
               sed -i "s|<<DuploPortalName>>|$DUPLO_PORTAL_NAME|g" opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
               cp opentelemetry-release/integrations/integration-duplo/datasource-duplo-aws.yaml opentelemetry-release/integrations/integration-duplo/provisioning/datasource-duplo-aws.yaml
               ./mimirtool alertmanager load opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
@@ -81,6 +81,6 @@ spec:
               value: "anonymous"
             - name: REGION
               value: {{ .Values.global.awsRegion | quote }}
-      serviceAccountName: {{ .Values.global.tenantName }}-edit-user
+      serviceAccountName: {{ $.Release.Namespace }}-edit-user
       restartPolicy: Never
 {{- end }} 

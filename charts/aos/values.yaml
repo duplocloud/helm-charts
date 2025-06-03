@@ -1,20 +1,20 @@
 # Global settings
 global:
-  tenantName: "ref.duplo!tenantname"
-  tenantInfraName: "ref.duplo!tenantinfraname"
-  dnsSuffix: "{{DnsSuffix}}"
+  clusterName: "duploinfra-{{infraName}}"
   duploAuthUrl: "{{DuploAuthUrl}}"
   awsRegion: "{{AwsRegion}}"
   customerName: "{{CUSTOMER_NAME}}"
   environment: "{{ENVIRONMENT}}"
+  namespaceFilter: ".+otel.+"
   release: "2.0.7"
+  grafanaProxyUrl: ""
 
 # Grafana UI settings
 grafanaUI:
   enabled: true
   replicas: 1
   image: "duplocloud/otel-dashboards"
-  imageTag: "2.0.7"
+  imageTag: "{{ .Values.global.release }}"
   resources:
     limits:
       cpu: "100m"
@@ -31,7 +31,7 @@ duploAutomation:
   enabled: true
   replicas: 1
   image: "duplocloud/duplo-automation"
-  imageTag: "2.0.7"
+  imageTag: "{{ .Values.global.release }}"
   volume:
     size: "10Gi"
 
@@ -53,7 +53,7 @@ grafanaProxy:
 secrets:
   grafanaUI:
     username: "duplocloud"
-    password: "{{AdminPassword}}"
+    password: "{{ .Values.global.grafanaPassword }}"
   gpgPassphrase: "ZHVwbG8tbG9raS1wYXNzd29yZC1vYnNlcnZhYmlsdHktc2V0dXA="
 
 # Integration Job settings

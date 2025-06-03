@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: otel-observability-collector
-  namespace: {{ .Values.global.tenantName }}
+  namespace: {{ $.Release.Namespace }}
 spec:
   schedule: {{ .Values.observabilityCollector.schedule | quote }}
   concurrencyPolicy: Forbid
@@ -22,9 +22,9 @@ spec:
                 - name: LOKI_URL
                   value: "https://logs.prod-apps.duplocloud.net"
                 - name: CLUSTER
-                  value: {{ .Values.global.tenantInfraName | quote }}
+                  value: {{ .Values.global.clusterName | quote }}
                 - name: NAMESPACE
-                  value: {{ .Values.global.tenantName | quote }}
+                  value: {{ .Values.global.namespaceFilter | quote }}
                 - name: CUSTOMER
                   value: {{ .Values.global.customerName | quote }}
                 - name: ENVIRONMENT

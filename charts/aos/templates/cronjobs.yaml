@@ -1,0 +1,42 @@
+{{- if .Values.observabilityCollector.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: otel-observability-collector
+  namespace: {{ .Values.global.tenantName }}
+spec:
+  schedule: {{ .Values.observabilityCollector.schedule | quote }}
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: duplo-observability
+              image: "{{ .Values.observabilityCollector.image }}:{{ .Values.observabilityCollector.imageTag }}"
+              env:
+                - name: PROMETHEUS_URL
+                  value: "http://duplo-metrics-nginx:80/prometheus"
+                - name: LOKI_URL
+                  value: "https://logs.prod-apps.duplocloud.net"
+                - name: CLUSTER
+                  value: {{ .Values.global.tenantInfraName | quote }}
+                - name: NAMESPACE
+                  value: {{ .Values.global.tenantName | quote }}
+                - name: CUSTOMER
+                  value: {{ .Values.global.customerName | quote }}
+                - name: ENVIRONMENT
+                  value: {{ .Values.global.environment | quote }}
+                - name: DUPLO_URL
+                  value: {{ .Values.global.duploAuthUrl | quote }}
+                - name: GPG_PASSPHRASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: gpg-passphrase
+                      key: gpg_passphrase
+                - name: JOB_VERSION
+                  value: {{ .Values.observabilityCollector.jobVersion | quote }}
+          restartPolicy: OnFailure
+{{- end }} 

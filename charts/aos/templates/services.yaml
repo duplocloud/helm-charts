@@ -1,0 +1,50 @@
+{{- if .Values.grafanaUI.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-ui
+  namespace: {{ .Values.global.tenantName }}
+  labels:
+    app: grafana-ui
+spec:
+  selector:
+    app: grafana-ui
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+---
+{{- end }}
+{{- if .Values.duploAutomation.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: duplo-automation
+  namespace: {{ .Values.global.tenantName }}
+  labels:
+    app: duplo-automation
+spec:
+  selector:
+    app: duplo-automation
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+---
+{{- end }}
+{{- if .Values.grafanaProxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-proxy
+  namespace: {{ .Values.global.tenantName }}
+  labels:
+    app: grafana-proxy
+spec:
+  selector:
+    app: grafana-proxy
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+{{- end }} 

@@ -1,0 +1,27 @@
+{{- if .Values.grafanaUI.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-ui-data
+  namespace: {{ .Values.global.tenantName }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.grafanaUI.volume.size }}
+---
+{{- end }}
+{{- if .Values.duploAutomation.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duplo-automation-data
+  namespace: {{ .Values.global.tenantName }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.duploAutomation.volume.size }}
+{{- end }} 

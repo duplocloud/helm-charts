@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: grafana-ui
-          image: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag }}"
+          image: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag | default .Values.global.release }}"
           ports:
             - containerPort: 3000
           env:
@@ -68,7 +68,7 @@ spec:
     spec:
       containers:
         - name: duplo-automation
-          image: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag }}"
+          image: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
           ports:
             - containerPort: 5000
           env:

@@ -17,7 +17,7 @@ grafanaUI:
   enabled: true
   replicas: 1
   image: "duplocloud/otel-dashboards"
-  imageTag: "{{ .Values.global.release }}"
+  imageTag: ""
   resources:
     limits:
       cpu: "100m"
@@ -34,7 +34,7 @@ duploAutomation:
   enabled: true
   replicas: 1
   image: "duplocloud/duplo-automation"
-  imageTag: "{{ .Values.global.release }}"
+  imageTag: ""
   volume:
     size: "10Gi"
 

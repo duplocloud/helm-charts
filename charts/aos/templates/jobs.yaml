@@ -20,67 +20,24 @@ spec:
                 echo "Waiting for $DUPLO_AUTOMATION_ENDPOINT to be ready..."
                 sleep 10
               done
-              echo "Waiting for $GRAFANA_UI to be ready..."
-              until curl --silent --fail --output /dev/null $GRAFANA_UI; do
-                echo "Waiting for $GRAFANA_UI to be ready..."
-                sleep 10
-              done
-              echo "Waiting for $MIMIR_RULER to be ready..."
-              until curl --silent --fail --output /dev/null $MIMIR_RULER; do
-                echo "Waiting for $MIMIR_RULER to be ready..."
-                sleep 10
-              done
-              echo "Waiting for $MIMIR_ALERTMANAGER to be ready..."
-              until curl --silent --fail --output /dev/null $MIMIR_ALERTMANAGER; do
-                echo "Waiting for $MIMIR_ALERTMANAGER to be ready..."
-                sleep 10
-              done
-              echo "installing mimirtool"
-              ARCH=$(uname -m)
-              PLATFORM=$( [[ "$ARCH" == "x86_64" ]] && echo "linux-amd64" || ([[ "$ARCH" == "aarch64" ]] && echo "linux-arm64" || echo "linux-armv7"))
-              curl -fLo mimirtool "https://github.com/grafana/mimir/releases/latest/download/mimirtool-${PLATFORM}"
-              chmod +x mimirtool
-              apk add --no-cache git
-              git clone --depth=1 https://github.com/duplocloud/opentelemetry-release.git
-              sed -i 's/<<SlackChannelName>>/duplo-otel-alerting/g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
-              sed -i "s/<<region>>/$REGION/g" opentelemetry-release/integrations/integration-duplo/datasource-duplo-aws.yaml
-              sed -i 's|<<SlackWebhook>>|{{ .Values.global.slackWebhookUrl  }}|g' opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml
-              sed -i 's|<<GrafanaURL>>|{{ .Values.global.grafanaProxyUrl }}|g' opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
-              sed -i "s|<<DuploPortalName>>|$DUPLO_PORTAL_NAME|g" opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
-              cp opentelemetry-release/integrations/integration-duplo/datasource-duplo-aws.yaml opentelemetry-release/integrations/integration-duplo/provisioning/datasource-duplo-aws.yaml
-              ./mimirtool alertmanager load opentelemetry-release/integrations/integration-duplo/duplo-default-config.yaml opentelemetry-release/integrations/integration-duplo/duplo_templates.tpl
               echo "Triggering Duplo automation integration..."
-              INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo"
+              INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo duplo-bootstrap"
               for i in $INTEGRATIONS; do
                 echo "Enabling $i"
                 curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
                   --header 'Content-Type:application/json' \
                   --data-raw "{\"integration_name\":\"$i\",\"context_name\":\"duplo-otel\"}" || { echo "❌ Failed to enable $i"; exit 1; }
               done
-              echo "Enabling duplo"
+              echo "Enabling duplo-common"
               curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
                 --header 'Content-Type:application/json' \
-                --data '{"integration_name":"duplo","context_name":"duplo-otel"}' || { echo "❌ Failed to enable duplo"; exit 1; }
+                --data '{"integration_name":"duplo-common","context_name":"duplo-otel"}' || { echo "❌ Failed to enable duplo"; exit 1; }
               echo "✅ Duplo default provisioning completed successfully."
           env:
             - name: DUPLO_AUTOMATION_DEPLOYMENT_NAME
               value: "duplo-automation"
             - name: DUPLO_AUTOMATION_ENDPOINT
               value: "http://duplo-automation:5000"
-            - name: GRAFANA_UI
-              value: "http://grafana-ui:3000"
-            - name: MIMIR_RULER
-              value: "http://duplo-metrics-ruler:8080"
-            - name: MIMIR_ADDRESS
-              value: "http://duplo-metrics-nginx"
-            - name: MIMIR_ALERTMANAGER
-              value: "http://duplo-metrics-alertmanager:8080"
-            - name: DUPLO_PORTAL_NAME
-              value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
-            - name: MIMIR_TENANT_ID
-              value: "anonymous"
-            - name: REGION
-              value: {{ .Values.global.awsRegion | quote }}
       serviceAccountName: {{ $.Release.Namespace }}-edit-user
       restartPolicy: Never
 {{- end }} 

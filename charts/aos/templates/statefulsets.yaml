@@ -146,6 +146,16 @@ spec:
               value: "http://duplo-metrics-alertmanager:8080"
             - name: MIMIR_TENANT_ID
               value: "anonymous"
+            - name: AOS_GRAFANA_URL
+              value: "{{ .Values.global.grafanaProxyUrl }}"
+            - name: AOS_SLACK_WEBHOOK
+              value: "https://hooks.slack.com/services/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"
+            - name: AOS_SLACK_CHANNEL_NAME
+              value: "duplo-otel-alerting"
+            - name: AOS_DUPLO_PORTAL_NAME
+              value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
+            - name: AOS_REGION
+              value: "{{ .Values.global.awsRegion }}"
             - name: DOCKER_IMAGE
               value: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
           volumeMounts:

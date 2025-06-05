@@ -1,0 +1,40 @@
+{{- if .Values.integrationJob.enabled }}
+# Bootstrap job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: integration-duplo-bootstrap
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: init-duplo
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for $DUPLO_AUTOMATION_DEPLOYMENT_NAME to be ready..."
+              until curl --silent --fail --output /dev/null $DUPLO_AUTOMATION_ENDPOINT; do
+                echo "Waiting for $DUPLO_AUTOMATION_ENDPOINT to be ready..."
+                sleep 10
+              done
+              echo "Enabling duplo-bootstrap"
+              curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
+                --header 'Content-Type:application/json' \
+                --data '{"integration_name":"duplo-bootstrap","context_name":"duplo-otel"}' || { echo "❌ Failed to enable duplo-bootstrap"; exit 1; }
+              echo "✅ Duplo bootstrap integration completed successfully."
+          env:
+            - name: DUPLO_AUTOMATION_DEPLOYMENT_NAME
+              value: "duplo-automation"
+            - name: DUPLO_AUTOMATION_ENDPOINT
+              value: "http://duplo-automation:5000"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- end }} 

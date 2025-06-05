@@ -1,13 +1,11 @@
-{{- define "aos.integration-job" -}}
-{{- $hook := .hook -}}
-{{- $integrations := .integrations -}}
+{{- if .Values.integrationJob.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: integration-duplo{{ if eq $hook "post-upgrade" }}-upgrade{{ end }}
-  namespace: {{ $.Release.Namespace }}
+  name: integration-duplo-upgrade
+  namespace: {{ .Release.Namespace }}
   annotations:
-    "helm.sh/hook": {{ $hook }}
+    "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
@@ -27,7 +25,7 @@ spec:
                 sleep 10
               done
               echo "Triggering Duplo automation integration..."
-              INTEGRATIONS="{{ $integrations }}"
+              INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo"
               for i in $INTEGRATIONS; do
                 echo "Enabling $i"
                 curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
@@ -44,6 +42,6 @@ spec:
               value: "duplo-automation"
             - name: DUPLO_AUTOMATION_ENDPOINT
               value: "http://duplo-automation:5000"
-      serviceAccountName: {{ $.Release.Namespace }}-edit-user
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
       restartPolicy: Never
-{{- end -}} 
+{{- end }} 

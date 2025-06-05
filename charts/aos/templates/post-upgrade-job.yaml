@@ -1,0 +1,3 @@
+{{- if .Values.integrationJob.enabled }}
+{{- include "aos.integration-job" (dict "hook" "post-upgrade" "integrations" "apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo" "Values" .Values "Release" .Release) }}
+{{- end }} 

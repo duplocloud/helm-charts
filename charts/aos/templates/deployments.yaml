@@ -27,5 +27,9 @@ spec:
             - name: CUSTOM_HEADER_ADD
               value: "proxy_set_header X-WEBAUTH-USER duplocloud;"
           resources:
-            {{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
-{{- end }} 
+{{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
+{{- if .Values.grafanaProxy.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaProxy.nodeSelector | indent 8 }}
+{{- end }}
+{{- end }}

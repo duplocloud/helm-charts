@@ -39,4 +39,8 @@ spec:
                 - name: JOB_VERSION
                   value: {{ .Values.observabilityCollector.jobVersion | quote }}
           restartPolicy: OnFailure
-{{- end }} 
+{{- if .Values.observabilityCollector.nodeSelector }}
+          nodeSelector:
+{{ toYaml .Values.observabilityCollector.nodeSelector | indent 12 }}
+{{- end }}
+{{- end }}

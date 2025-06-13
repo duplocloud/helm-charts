@@ -44,4 +44,8 @@ spec:
               value: "http://duplo-automation:5000"
       serviceAccountName: {{ .Release.Namespace }}-edit-user
       restartPolicy: Never
+{{- if .Values.integrationJob.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.integrationJob.nodeSelector | indent 8 }}
+{{- end }} 
 {{- end }} 

@@ -18,7 +18,9 @@ spec:
         - name: grafana-proxy
           image: "{{ .Values.grafanaProxy.image }}:{{ .Values.grafanaProxy.imageTag }}"
           ports:
-            - containerPort: 80
+            - name: proxy
+              containerPort: 80
+              protocol: TCP
           env:
             - name: DUPLO_AUTH_URL
               value: {{ .Values.global.duploAuthUrl | quote }}

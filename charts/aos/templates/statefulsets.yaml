@@ -69,6 +69,10 @@ spec:
                   matchLabels:
                     app: grafana-ui
                 topologyKey: kubernetes.io/hostname
+{{- if .Values.grafanaUI.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaUI.nodeSelector | indent 8 }}
+{{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -172,6 +176,10 @@ spec:
                   matchLabels:
                     app: duplo-automation
                 topologyKey: kubernetes.io/hostname
+{{- if .Values.duploAutomation.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.duploAutomation.nodeSelector | indent 8 }}
+{{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data

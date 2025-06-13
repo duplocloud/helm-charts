@@ -25,7 +25,8 @@ grafanaUI:
       memory: "512Mi"
   volume:
     size: "10Gi"
-  nodeSelector: {}
+  nodeSelector: 
+    allocationtags: duplo-observability
   plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
 
 # Duplo Automation settings
@@ -36,7 +37,8 @@ duploAutomation:
   imageTag: ""
   volume:
     size: "10Gi"
-  nodeSelector: {}
+  nodeSelector: 
+    allocationtags: duplo-observability
 
 # Grafana Proxy settings
 grafanaProxy:
@@ -51,7 +53,8 @@ grafanaProxy:
     requests:
       cpu: "50m"
       memory: "128Mi"
-  nodeSelector: {}
+  nodeSelector: 
+    allocationtags: duplo-observability
 
 # Secrets
 secrets:
@@ -65,7 +68,8 @@ integrationJob:
   enabled: true
   image: "alpine/k8s"
   imageTag: "1.32.1"
-  nodeSelector: {}
+  nodeSelector: 
+    allocationtags: duplo-observability
 
 # Observability Collector CronJob settings
 observabilityCollector:
@@ -74,4 +78,5 @@ observabilityCollector:
   image: "duplocloud/duplo-observability"
   imageTag: "stable"
   jobVersion: "2.1.0" 
-  nodeSelector: {}
+  nodeSelector: 
+    allocationtags: duplo-observability

@@ -10,7 +10,8 @@ spec:
   selector:
     app: grafana-ui
   ports:
-    - port: 3000
+    - name: http
+      port: 3000
       targetPort: 3000
       protocol: TCP
 ---
@@ -27,7 +28,8 @@ spec:
   selector:
     app: duplo-automation
   ports:
-    - port: 5000
+    - name: http
+      port: 5000
       targetPort: 5000
       protocol: TCP
 ---
@@ -44,7 +46,8 @@ spec:
   selector:
     app: grafana-proxy
   ports:
-    - port: 80
+    - name: proxy
+      port: 80
       targetPort: 80
       protocol: TCP
 {{- end }} 

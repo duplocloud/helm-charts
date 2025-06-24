@@ -17,7 +17,7 @@ spec:
           image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
           command:
             - /bin/sh
-            - -c
+            - '-c'
             - |
               echo "Waiting for $DUPLO_AUTOMATION_DEPLOYMENT_NAME to be ready..."
               until curl --silent --fail --output /dev/null $DUPLO_AUTOMATION_ENDPOINT; do
@@ -25,17 +25,15 @@ spec:
                 sleep 10
               done
               echo "Triggering Duplo automation integration..."
-              INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo"
+              INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo duplo-common"
               for i in $INTEGRATIONS; do
                 echo "Enabling $i"
-                curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
-                  --header 'Content-Type:application/json' \
-                  --data-raw "{\"integration_name\":\"$i\",\"context_name\":\"duplo-otel\"}" || { echo "❌ Failed to enable $i"; exit 1; }
+                if ! curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
+                  --header "Content-Type:application/json" \
+                  --data-raw "{\"integration_name\":\"$i\",\"context_name\":\"duplo-otel\"}"; then
+                  echo " Failed to enable $i. Continuing with next integration."
+                fi
               done
-              echo "Enabling duplo-common"
-              curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
-                --header 'Content-Type:application/json' \
-                --data '{"integration_name":"duplo-common","context_name":"duplo-otel"}' || { echo "❌ Failed to enable duplo"; exit 1; }
               echo "✅ Duplo default provisioning completed successfully."
           env:
             - name: DUPLO_AUTOMATION_DEPLOYMENT_NAME

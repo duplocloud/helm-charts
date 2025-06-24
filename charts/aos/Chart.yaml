@@ -2,5 +2,5 @@ apiVersion: v2
 name: aos
 description: Helm chart for Duplo OpenTelemetry stack
 type: application
-version: 2.0.12
+version: 2.1.0
 appVersion: "2.1.0" 

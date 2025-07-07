@@ -24,13 +24,15 @@ spec:
                 - name: CLUSTER
                   value: {{ .Values.global.clusterName | quote }}
                 - name: NAMESPACE
-                  value: {{ .Values.global.namespaceFilter | quote }}
+                  value: {{ .Values.global.namespace | quote }}
                 - name: CUSTOMER
                   value: {{ .Values.global.customerName | quote }}
                 - name: ENVIRONMENT
                   value: {{ .Values.global.environment | quote }}
                 - name: DUPLO_URL
                   value: {{ .Values.global.duploAuthUrl | quote }}
+                - name: NAMESPACE_FILTER
+                  value: {{ .Values.global.namespaceFilter | quote }} 
                 - name: GPG_PASSPHRASE
                   valueFrom:
                     secretKeyRef:

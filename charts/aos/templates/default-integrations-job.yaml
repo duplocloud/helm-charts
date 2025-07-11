@@ -26,6 +26,9 @@ spec:
               done
               echo "Triggering Duplo automation integration..."
               INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo duplo-common"
+              if [ "{{ .Values.global.cloudProvider }}" == "aws" ]; then
+                INTEGRATIONS="$INTEGRATIONS aws-cloudwatch"
+              fi
               for i in $INTEGRATIONS; do
                 echo "Enabling $i"
                 if ! curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \

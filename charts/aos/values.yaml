@@ -10,7 +10,7 @@ global:
   release: "2.1.0"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
-  cloudProvider: "{{ .CloudProvider }}"
+  cloud: "aws"
   
 # Grafana UI settings
 grafanaUI:

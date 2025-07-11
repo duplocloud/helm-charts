@@ -28,6 +28,26 @@ spec:
               value: "http://grafana-ui:3000"
             - name: CUSTOM_HEADER_ADD
               value: "proxy_set_header X-WEBAUTH-USER duplocloud;"
+          readinessProbe:
+            httpGet:
+              path: /duplo_auth
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /duplo_auth
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
           resources:
 {{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
 {{- if .Values.grafanaProxy.nodeSelector }}

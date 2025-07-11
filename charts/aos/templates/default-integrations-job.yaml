@@ -1,4 +1,4 @@
-{{- if .Values.integrationJob.enabled }}
+{{- if and .Values.integrationJob.enabled (eq .Values.global.cloudProvider "aws") }}
 apiVersion: batch/v1
 kind: Job
 metadata:

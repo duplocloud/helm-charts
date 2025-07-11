@@ -1,4 +1,4 @@
-{{- if and .Values.integrationJob.enabled (eq .Values.global.cloudProvider "aws") }}
+{{- if .Values.integrationJob.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -26,7 +26,7 @@ spec:
               done
               echo "Triggering Duplo automation integration..."
               INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo duplo-common"
-              if [ "{{ .Values.global.cloudProvider }}" == "aws" ]; then
+              if [ "{{ .Values.global.cloud }}" == "aws" ]; then
                 INTEGRATIONS="$INTEGRATIONS aws-cloudwatch"
               fi
               for i in $INTEGRATIONS; do

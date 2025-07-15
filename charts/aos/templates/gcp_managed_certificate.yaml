@@ -1,0 +1,12 @@
+{{- if eq .Values.global.cloud "gcp" }}
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: grafana-proxy-otel
+  annotations:
+    "helm.sh/hook": pre-install
+  namespace: {{ .Values.global.namespace }}
+spec:
+  domains:
+    - {{ .Values.global.grafanaProxyUrl }}
+{{- end }}

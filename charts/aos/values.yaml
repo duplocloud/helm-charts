@@ -7,9 +7,10 @@ global:
   environment: ""
   namespace: ""
   namespaceFilter: ".+otel.+"
-  release: "2.1.0"
+  release: "2.1.1"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
+  cloud: ""
   
 # Grafana UI settings
 grafanaUI:

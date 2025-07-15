@@ -2,7 +2,7 @@
 global:
   clusterName: "duploinfra-{{infraName}}"
   duploAuthUrl: ""
-  awsRegion: ""
+  AOSRegion: ""
   customerName: ""
   environment: ""
   namespace: ""
@@ -10,7 +10,7 @@ global:
   release: "2.1.0"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
-  cloud: "aws"
+  cloud: ""
   
 # Grafana UI settings
 grafanaUI:

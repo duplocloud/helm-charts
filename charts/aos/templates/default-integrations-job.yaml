@@ -25,7 +25,7 @@ spec:
                 sleep 10
               done
               echo "Triggering Duplo automation integration..."
-              INTEGRATIONS="apm linuxnode kubernetes slo aws-cloudwatch mimir loki tempo duplo-common"
+              INTEGRATIONS="apm linuxnode kubernetes slo mimir loki tempo duplo-common"
               if [ "{{ .Values.global.cloud }}" == "aws" ]; then
                 INTEGRATIONS="$INTEGRATIONS aws-cloudwatch"
               fi

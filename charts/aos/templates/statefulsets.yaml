@@ -53,8 +53,6 @@ spec:
                 secretKeyRef:
                   name: grafanaui
                   key: password
-            - name: DOCKER_IMAGE
-              value: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag | default .Values.global.release }}"
           resources:
             {{- toYaml .Values.grafanaUI.resources | nindent 12 }}
           volumeMounts:
@@ -154,6 +152,14 @@ spec:
               value: "http://duplo-metrics-alertmanager:8080"
             - name: MIMIR_TENANT_ID
               value: "anonymous"
+            - name: ONCALL_WEBHOOK_URL
+              value: "{{ .Values.global.oncallWebhookUrl }}"
+            - name: CUSTOMER_NAME
+              value: "{{ .Values.global.customerName }}"
+            - name: DEPLOYMENT_NAME
+              value: "{{ .Values.global.clusterName }}"
+            - name: ENVIRONMENT
+              value: "{{ .Values.global.environment }}"
             - name: AOS_GRAFANA_URL
               value: "{{ .Values.global.grafanaProxyUrl }}"
             - name: AOS_SLACK_WEBHOOK
@@ -162,12 +168,12 @@ spec:
               value: "duplo-otel-alerting"
             - name: AOS_DUPLO_PORTAL_NAME
               value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
+            - name: AOS_NAMESPACE_FILTER
+              value: "{{ .Values.global.namespaceFilter }}"
           {{- if eq .Values.global.cloud "aws" }}
             - name: AOS_REGION
               value: "{{ .Values.global.AOSRegion }}"
           {{- end }}
-            - name: DOCKER_IMAGE
-              value: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
           volumeMounts:
             - name: data
               mountPath: /app/data

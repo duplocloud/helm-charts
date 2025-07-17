@@ -10,6 +10,7 @@ global:
   release: "2.1.1"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
+  oncallWebhookUrl: ""
   cloud: ""
   
 # Grafana UI settings

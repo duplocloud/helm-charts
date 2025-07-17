@@ -162,8 +162,10 @@ spec:
               value: "duplo-otel-alerting"
             - name: AOS_DUPLO_PORTAL_NAME
               value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
+          {{- if eq .Values.global.cloud "aws" }}
             - name: AOS_REGION
-              value: "{{ .Values.global.awsRegion }}"
+              value: "{{ .Values.global.AOSRegion }}"
+          {{- end }}
             - name: DOCKER_IMAGE
               value: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
           volumeMounts:

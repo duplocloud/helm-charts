@@ -164,6 +164,8 @@ spec:
               value: "{{ .Values.global.grafanaProxyUrl }}"
             - name: AOS_SLACK_WEBHOOK
               value: "{{ .Values.global.slackWebhookUrl }}"
+            - name: AOS_AUTOMATION_WEBHOOK
+              value: "{{ .Values.global.automationWebhookUrl }}"
             - name: AOS_SLACK_CHANNEL_NAME
               value: "duplo-otel-alerting"
             - name: AOS_DUPLO_PORTAL_NAME

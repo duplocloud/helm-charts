@@ -11,6 +11,7 @@ global:
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
   oncallWebhookUrl: ""
+  automationWebhookUrl: "http://duplo-automation:5000/alertmanager/webhook"
   cloud: ""
   
 # Grafana UI settings

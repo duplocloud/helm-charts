@@ -6,7 +6,7 @@ global:
   customerName: ""
   environment: ""
   namespace: ""
-  namespaceFilter: ".+otel.+"
+  namespaceFilter: ".*otel.*"
   release: "2.1.1"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""

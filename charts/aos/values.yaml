@@ -6,11 +6,14 @@ global:
   customerName: ""
   environment: ""
   namespace: ""
-  namespaceFilter: ".+otel.+"
+  namespaceFilter: ".*otel.*"
   release: "2.1.1"
   grafanaProxyUrl: ""
   slackWebhookUrl: ""
+  oncallWebhookUrl: ""
+  automationWebhookUrl: "http://duplo-automation:5000/alertmanager/webhook"
   cloud: ""
+  duploReleaseBranch: "main"
   
 # Grafana UI settings
 grafanaUI:
@@ -47,7 +50,7 @@ grafanaProxy:
   enabled: true
   replicas: 1
   image: "duplocloud/sso-proxy"
-  imageTag: "v2.0.3-otel"
+  imageTag: "v2.0.4-otel"
   resources:
     limits:
       cpu: "50m"

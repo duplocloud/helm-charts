@@ -25,6 +25,7 @@ spec:
                 sleep 10
               done
               echo "Triggering Duplo automation integration..."
+              branchName="{{ .Values.global.duploReleaseBranch }}"
               INTEGRATIONS="apm linuxnode kubernetes slo mimir loki tempo duplo-common"
               if [ "{{ .Values.global.cloud }}" == "aws" ]; then
                 INTEGRATIONS="$INTEGRATIONS aws-cloudwatch"
@@ -33,7 +34,7 @@ spec:
                 echo "Enabling $i"
                 if ! curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
                   --header "Content-Type:application/json" \
-                  --data-raw "{\"integration_name\":\"$i\",\"context_name\":\"duplo-otel\"}"; then
+                  --data-raw "{\"integration_name\":\"$i\",\"context_name\":\"duplo-otel\",\"branch_name\":\"$branchName\"}"; then
                   echo " Failed to enable $i. Continuing with next integration."
                 fi
               done

@@ -26,9 +26,10 @@ spec:
                 sleep 10
               done
               echo "Enabling duplo-bootstrap"
+              branchName="{{ .Values.global.duploReleaseBranch }}"
               curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
                 --header 'Content-Type:application/json' \
-                --data '{"integration_name":"duplo-bootstrap","context_name":"duplo-otel"}' || { echo "❌ Failed to enable duplo-bootstrap"; exit 1; }
+                --data-raw "{\"integration_name\":\"duplo-bootstrap\",\"context_name\":\"duplo-otel\",\"branch_name\":\"$branchName\"}" || { echo "❌ Failed to enable duplo-bootstrap"; exit 1; }
               echo "✅ Duplo bootstrap integration completed successfully."
           env:
             - name: DUPLO_AUTOMATION_DEPLOYMENT_NAME

@@ -13,6 +13,7 @@ global:
   oncallWebhookUrl: ""
   automationWebhookUrl: "http://duplo-automation:5000/alertmanager/webhook"
   cloud: ""
+  duploReleaseBranch: "main"
   
 # Grafana UI settings
 grafanaUI:

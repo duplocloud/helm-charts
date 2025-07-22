@@ -50,7 +50,7 @@ grafanaProxy:
   enabled: true
   replicas: 1
   image: "duplocloud/sso-proxy"
-  imageTag: "v2.0.3-otel"
+  imageTag: "v2.0.4-otel"
   resources:
     limits:
       cpu: "50m"

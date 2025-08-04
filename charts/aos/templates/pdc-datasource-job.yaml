@@ -1,0 +1,51 @@
+{{- if .Values.grafanaUI.pdc.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gc-pdc-datasource
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: pdc-datasource
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - '-c'
+            - |
+              curl -X POST https://{{ .Values.grafanaUI.pdc.config.gc_url }}/api/datasources \
+                -H "Authorization: Bearer {{ .Values.grafanaUI.pdc.config.api_key }}" \
+                -H "Content-Type: application/json" \
+                --data-raw '{
+                  "name": "{{ $.Release.Namespace }}-metrics",
+                  "uid": "{{ $.Release.Namespace }}-metrics",
+                  "type": "prometheus",
+                  "url": "{{ .Values.grafanaUI.pdc.config.aos_mimir_url }}",
+                  "access": "proxy",
+                  "basicAuth": false,
+                  "basicAuthUser": "",
+                  "jsonData": {
+                    "timeInterval": "10s",
+                    "enableSecureSocksProxy": true,
+                    "pdcInjected": true,
+                    "secureSocksProxyUsername": "{{ .Values.grafanaUI.pdc.config.pdc_uid }}"
+                  }
+                }'
+          env:
+            - name: aos_mimir_url
+              value: {{ .Values.grafanaUI.pdc.config.aos_mimir_url }}
+            - name: pdc_uid
+              value: {{ .Values.grafanaUI.pdc.config.pdc_uid }}
+            - name: api_key
+              value: {{ .Values.grafanaUI.pdc.config.api_key }}
+            - name: gc_url
+              value: {{ .Values.grafanaUI.pdc.config.gc_url }}
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.integrationJob.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.integrationJob.nodeSelector | indent 8 }}
+{{- end }} 
+{{- end }} 

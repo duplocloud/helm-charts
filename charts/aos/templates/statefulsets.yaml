@@ -31,6 +31,15 @@ spec:
         k8s_grafana_com_metrics_path: "/metrics"
         k8s_grafana_com_metrics_portNumber: "3000"
     spec:
+      {{ if .Values.grafanaUI.syntheticMonitoring.enabled }}
+      volumes:
+        - name: synthetic-monitoring-datasource
+          configMap:
+            name: grafana-provisioning-synthetic-monitoring
+        - name: synthetic-monitoring-plugin
+          configMap:
+            name: grafana-provisioning-synthetic-monitoring
+      {{ end }}
       containers:
         - name: grafana-ui
           image: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag | default .Values.global.release }}"
@@ -40,7 +49,7 @@ spec:
               protocol: TCP
           env:
             - name: GF_INSTALL_PLUGINS
-              value: {{ .Values.grafanaUI.plugins | quote }}
+              value: {{ if .Values.grafanaUI.syntheticMonitoring.enabled }}{{ printf "%s,%s" .Values.grafanaUI.plugins "grafana-synthetic-monitoring-app" | quote }}{{ else }}{{ .Values.grafanaUI.plugins | quote }}{{ end }}
             - name: GF_SERVER_ROOT_URL
               value: "{{ .Values.global.grafanaProxyUrl }}"
             - name: GF_SECURITY_ADMIN_USER
@@ -58,6 +67,14 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/grafana
+            {{- if .Values.grafanaUI.syntheticMonitoring.enabled }}
+            - name: synthetic-monitoring-plugin
+              mountPath: /etc/grafana/provisioning/plugins/grafanacloud-synthetic-monitoring.yml
+              subPath: grafanacloud-synthetic-monitoring.yml
+            - name: synthetic-monitoring-datasource
+              mountPath: /etc/grafana/provisioning/datasources/grafanacloud.yml
+              subPath: grafanacloud.yml
+          {{- end }}
       securityContext:
         fsGroup: 472
       affinity:

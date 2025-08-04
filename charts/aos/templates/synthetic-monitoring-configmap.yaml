@@ -1,0 +1,56 @@
+{{- if .Values.grafanaUI.syntheticMonitoring.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-synthetic-monitoring
+data:
+  grafanacloud-synthetic-monitoring.yml: |
+    apiVersion: 1
+    apps:
+    - type: grafana-synthetic-monitoring-app
+      uid: grafanacloud-synthetic-monitoring
+      name: grafanacloud-synthetic-monitoring
+      disabled: false
+      jsonData:
+        apiHost: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_synthetic_monitoring_url }}
+        stackId: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_instance_id | int }}
+        logs:
+          grafanaName: grafanacloud-loki
+          hostedId: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_loki_host_id | int }}
+          uid: grafanacloud-loki
+        metrics:
+          grafanaName: grafanacloud-mimir
+          hostedId: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_mimir_host_id | int }}
+          uid: grafanacloud-mimir
+      secureJsonData:
+        publisherToken: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_token }}
+
+  grafanacloud.yml: |
+    apiVersion: 1
+    datasources:
+    - name: grafanacloud-loki
+      uid: grafanacloud-loki
+      editable: true
+      type: loki
+      access: proxy
+      url: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_loki_url }}
+      basicAuth: true
+      basicAuthUser: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_loki_host_id | int }}
+      jsonData:
+        maxLines: 1000
+      secureJsonData:
+        basicAuthPassword: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_token }}
+
+    - name: grafanacloud-mimir
+      uid: grafanacloud-mimir
+      editable: true
+      type: prometheus
+      access: proxy
+      url: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_mimir_url }}/api/prom
+      basicAuth: true
+      basicAuthUser: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_mimir_host_id | int }}
+      jsonData:
+        timeInterval: 1s
+      secureJsonData:
+        basicAuthPassword: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_token }}
+{{- end }}

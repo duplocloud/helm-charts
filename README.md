@@ -1,2 +1,67 @@
 # helm-charts
 Public helm charts of DuploCloud
+
+# AOS Helm Chart
+
+This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, synthetic monitoring, and other observability components.
+
+## Global Configuration
+
+The following global settings can be configured in the `values.yaml` file:
+
+| Key                      | Description                                  | Default Value               |
+|--------------------------|----------------------------------------------|-----------------------------|
+| `global.clusterName`     | Name of the Kubernetes cluster               | `duploinfra-{{infraName}}`  |
+| `global.duploAuthUrl`    | URL for Duplo authentication                 | `""`                        |
+| `global.awsRegion`       | AWS region for the deployment                | `""`                        |
+| `global.customerName`    | Customer name                                | `""`                        |
+| `global.environment`     | Deployment environment (e.g., prod, nonprod) | `""`                        |
+| `global.namespace`       | Kubernetes namespace for the deployment      | `""`                        |
+| `global.namespaceFilter` | Regex filter for namespaces                  | `.+otel.+`                  |
+| `global.release`         | Release version                              | `2.1.1`                     |
+| `global.grafanaProxyUrl` | URL for Grafana Proxy                        | `""`                        |
+| `global.slackWebhookUrl` | Slack webhook URL for notifications          | `""`                        |
+| `global.cloud`           | Cloud provider (e.g., aws, gcp)              | `""`                        |
+
+## Grafana UI Configuration
+
+The `grafanaUI` section in `values.yaml` controls the Grafana UI deployment:
+
+| Key                                                     | Description                                      | Default Value                         |
+|---------------------------------------------------------|--------------------------------------------------|---------------------------------------|
+| `grafanaUI.enabled`                                     | Enable or disable Grafana UI                     | `true`                                |
+| `grafanaUI.replicas`                                    | Number of replicas for Grafana UI                | `1`                                   |
+| `grafanaUI.image`                                       | Docker image for Grafana UI                      | `duplocloud/otel-dashboards`          |
+| `grafanaUI.imageTag`                                    | Tag for the Grafana UI image                     | `""`                                  |
+| `grafanaUI.resources`                                   | Resource requests and limits for Grafana UI      | CPU: `100m`, Memory: `512Mi`          |
+| `grafanaUI.volume.size`                                 | Persistent volume size for Grafana UI            | `10Gi`                                |
+| `grafanaUI.nodeSelector`                                | Node selector for Grafana UI pods                | `allocationtags: duplo-observability` |
+| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app,`
+                                                                                                               `yesoreyeram-infinity-datasource,         volkovlabs-form-panel`                |
+| `grafanaUI.syntheticMonitoring.enabled`                 | Enable synthetic monitoring for Grafana Cloud    | `false`                               |
+| `grafanaUI.syntheticMonitoring.config.GC_INSTANCE_ID`   | Synthetic monitoring instance ID                 | `""`                                  |
+| `grafanaUI.syntheticMonitoring.config.GC_LOKI_HOST_ID`  | Loki host ID for synthetic monitoring            | `""`                                  |
+| `grafanaUI.syntheticMonitoring.config.GC_LOKI_URL`      | Loki URL for synthetic monitoring                | `""`                                  |
+| `grafanaUI.syntheticMonitoring.config.GC_MIMIR_HOST_ID` | Mimir host ID for synthetic monitoring           | `""`                                  |
+| `grafanaUI.syntheticMonitoring.config.GC_MIMIR_URL`     | Mimir URL for synthetic monitoring               | `""`                                  |
+| `grafanaUI.pdc.enabled`                                 | Enable PDC (Private Data Source) for Grafana UI  | `false`                               |
+| `grafanaUI.pdc.config.gc_instance_id`                   | Instance ID for PDC configuration                | `""`                                  |
+| `grafanaUI.pdc.config.pdc_cluster`                      | Cluster name for PDC configuration               | `""`                                  |
+| `grafanaUI.pdc.config.pdc_token`                        | Token for PDC configuration                      | `""`                                  |
+| `grafanaUI.pdc.config.pdc_uid`                          | PDC uid                                          | `""`                                  |
+| `grafanaUI.pdc.config.aos-mimir-url`                    | AOS mimir url                                    | `"http://duplo-metrics-nginx:80/prometheus"`|
+| `grafanaUI.pdc.resources.limits.memory`                 | Memory limit for PDC                             | `1Gi`                                 |
+| `grafanaUI.pdc.resources.requests.cpu`                  | CPU request for PDC                              | `1`                                   |
+| `grafanaUI.pdc.resources.requests.memory`               | Memory request for PDC                           | `1Gi`                                 |
+
+## Usage
+
+1. Clone this repository.
+2. create a `custom-values.yaml` file with your desired configuration.
+3. Dry run the helm chart
+   ```sh
+   helm upgrade aos . -n <namespace> --values custom-values.yaml --dry-run --debug
+4. Verify the changes
+5. Deploy the chart using Helm:
+   ```sh
+   helm upgrade aos . -n <namespace> --values custom-values.yaml

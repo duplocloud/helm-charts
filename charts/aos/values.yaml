@@ -33,6 +33,31 @@ grafanaUI:
   nodeSelector: 
     allocationtags: duplo-observability
   plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
+  syntheticMonitoring:
+    enabled: false
+    config:
+      gc_instance_id: ""
+      gc_loki_host_id: ""
+      gc_loki_url: ""
+      gc_mimir_host_id: ""
+      gc_mimir_url: ""
+      gc_synthetic_monitoring_url: ""
+      gc_token: ""
+  pdc:
+    enabled: false
+    config:
+      gc_instance_id: ""
+      gc_url: ""
+      pdc_cluster: ""
+      pdc_token: ""
+      pdc_uid: ""
+      aos_mimir_url: "http://duplo-metrics-nginx:80/prometheus"
+    resources:
+      limits:
+        memory: 1Gi
+      requests:
+        cpu: 1
+        memory: 1Gi
 
 # Duplo Automation settings
 duploAutomation:
@@ -67,7 +92,7 @@ secrets:
     username: "duplocloud"
     password: ""
   gpgPassphrase: ""
-
+  
 # Integration Job settings
 integrationJob:
   enabled: true
@@ -85,3 +110,8 @@ observabilityCollector:
   jobVersion: "2.1.0" 
   nodeSelector: 
     allocationtags: duplo-observability
+  
+# Synthetic Monitoring settings
+
+  
+

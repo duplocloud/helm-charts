@@ -59,9 +59,10 @@ spec:
       nodeSelector:
 {{ toYaml .Values.grafanaProxy.nodeSelector | indent 8 }}
 {{- end }}
+---
 {{- end }}
 
-{{- if .Values.grafanaUI.pdc.enabled }}
+{{- if .Values.pdc.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -113,7 +114,7 @@ spec:
         image: grafana/pdc-agent:latest
         imagePullPolicy: Always
         resources:
-        {{- toYaml .Values.grafanaUI.pdc.resources | nindent 10 }}
+        {{- toYaml .Values.pdc.resources | nindent 10 }}
         securityContext:
           allowPrivilegeEscalation: false
           privileged: false
@@ -125,8 +126,9 @@ spec:
         runAsUser: 30000
         runAsGroup: 30000
         fsGroup: 30000
-      {{- if .Values.grafanaProxy.nodeSelector }}
+      {{- if .Values.pdc.nodeSelector }}
       nodeSelector:
-      {{ toYaml .Values.grafanaProxy.nodeSelector | indent 8 }}
+      {{ toYaml .Values.pdc.nodeSelector | indent 8 }}
       {{- end }}
+---
 {{- end }}

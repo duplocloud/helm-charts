@@ -43,21 +43,6 @@ grafanaUI:
       gc_mimir_url: ""
       gc_synthetic_monitoring_url: ""
       gc_token: ""
-  pdc:
-    enabled: false
-    config:
-      gc_instance_id: ""
-      gc_url: ""
-      pdc_cluster: ""
-      pdc_token: ""
-      pdc_uid: ""
-      aos_mimir_url: "http://duplo-metrics-nginx:80/prometheus"
-    resources:
-      limits:
-        memory: 1Gi
-      requests:
-        cpu: 1
-        memory: 1Gi
 
 # Duplo Automation settings
 duploAutomation:
@@ -111,7 +96,26 @@ observabilityCollector:
   nodeSelector: 
     allocationtags: duplo-observability
   
-# Synthetic Monitoring settings
-
+# Grafana Cloud PDC settings
+pdc:
+  enabled: false
+  config:
+    gc_instance_id: ""
+    gc_url: ""
+    pdc_cluster: ""
+    pdc_token: ""
+    pdc_uid: ""
+    api_key: ""
+    aos_mimir_url: "http://duplo-metrics-nginx:80/prometheus"
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+  image: "alpine/k8s"
+  imageTag: "1.32.1"
+  nodeSelector: 
+    allocationtags: duplo-observability
   
 

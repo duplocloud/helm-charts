@@ -53,4 +53,5 @@ data:
         timeInterval: 1s
       secureJsonData:
         basicAuthPassword: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_token }}
+---
 {{- end }}

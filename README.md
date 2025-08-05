@@ -9,19 +9,23 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 
 The following global settings can be configured in the `values.yaml` file:
 
-| Key                      | Description                                  | Default Value               |
-|--------------------------|----------------------------------------------|-----------------------------|
-| `global.clusterName`     | Name of the Kubernetes cluster               | `duploinfra-{{infraName}}`  |
-| `global.duploAuthUrl`    | URL for Duplo authentication                 | `""`                        |
-| `global.awsRegion`       | AWS region for the deployment                | `""`                        |
-| `global.customerName`    | Customer name                                | `""`                        |
-| `global.environment`     | Deployment environment (e.g., prod, nonprod) | `""`                        |
-| `global.namespace`       | Kubernetes namespace for the deployment      | `""`                        |
-| `global.namespaceFilter` | Regex filter for namespaces                  | `.+otel.+`                  |
-| `global.release`         | Release version                              | `2.1.1`                     |
-| `global.grafanaProxyUrl` | URL for Grafana Proxy                        | `""`                        |
-| `global.slackWebhookUrl` | Slack webhook URL for notifications          | `""`                        |
-| `global.cloud`           | Cloud provider (e.g., aws, gcp)              | `""`                        |
+| Key                          | Description                                  | Default Value                                       |
+|------------------------------|----------------------------------------------|-----------------------------------------------------|
+| `global.clusterName`         | Name of the Kubernetes cluster               | `duploinfra-{{infraName}}`                          |
+| `global.duploAuthUrl`        | URL for Duplo authentication                 | `""`                                                |
+| `global.AOSRegion`           | AWS region for the deployment                | `""`                                                |
+| `global.customerName`        | Customer name                                | `""`                                                |
+| `global.environment`         | Deployment environment (e.g., prod, nonprod) | `""`                                                |
+| `global.namespace`           | Kubernetes namespace for the deployment      | `""`                                                |
+| `global.namespaceFilter`     | Regex filter for namespaces                  | `.+otel.+`                                          |
+| `global.release`             | Release version                              | `2.1.1`                                             |
+| `global.grafanaProxyUrl`     | URL for Grafana Proxy                        | `""`                                                |
+| `global.slackWebhookUrl`     | Slack webhook URL for notifications          | `""`                                                |
+| `global.oncallWebhookUrl`    | On-call webhook URL for notifications        | `""`                                                |
+| `global.automationWebhookUrl`| Automation webhook URL                       | `http://duplo-automation:5000/alertmanager/webhook` |
+| `global.cloud`               | Cloud provider (e.g., aws, gcp)              |`""`                                                 |
+| `global.duploReleaseBranch`  | Duplo release branch                         | `main`                                              |
+
 
 ## Grafana UI Configuration
 
@@ -44,15 +48,25 @@ The `grafanaUI` section in `values.yaml` controls the Grafana UI deployment:
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_URL`      | Loki URL for synthetic monitoring                | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_MIMIR_HOST_ID` | Mimir host ID for synthetic monitoring           | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_MIMIR_URL`     | Mimir URL for synthetic monitoring               | `""`                                  |
-| `grafanaUI.pdc.enabled`                                 | Enable PDC (Private Data Source) for Grafana UI  | `false`                               |
-| `grafanaUI.pdc.config.gc_instance_id`                   | Instance ID for PDC configuration                | `""`                                  |
-| `grafanaUI.pdc.config.pdc_cluster`                      | Cluster name for PDC configuration               | `""`                                  |
-| `grafanaUI.pdc.config.pdc_token`                        | Token for PDC configuration                      | `""`                                  |
-| `grafanaUI.pdc.config.pdc_uid`                          | PDC uid                                          | `""`                                  |
-| `grafanaUI.pdc.config.aos-mimir-url`                    | AOS mimir url                                    | `"http://duplo-metrics-nginx:80/prometheus"`|
-| `grafanaUI.pdc.resources.limits.memory`                 | Memory limit for PDC                             | `1Gi`                                 |
-| `grafanaUI.pdc.resources.requests.cpu`                  | CPU request for PDC                              | `1`                                   |
-| `grafanaUI.pdc.resources.requests.memory`               | Memory request for PDC                           | `1Gi`                                 |
+
+## Grafana Cloud PDC Configuration
+
+The `pdc` section in `values.yaml` controls the Private Data Source (PDC) deployment:
+
+| `pdc.enabled`                                 | Enable PDC (Private Data Source) for Grafana UI  | `false`                                     |
+| `pdc.config.gc_instance_id`                   | Instance ID for PDC configuration                | `""`                                        |
+| `pdc.config.pdc_cluster`                      | Cluster name for PDC configuration               | `""`                                        |
+| `pdc.config.pdc_token`                        | Token for PDC configuration                      | `""`                                        |
+| `pdc.config.pdc_uid`                          | PDC uid                                          | `""`                                        |
+| `pdc.config.api_key`                          | GC Service Account Key for datasource            | `""`                                        |
+| `pdc.config.aos-mimir-url`                    | AOS mimir url                                    | `"http://duplo-metrics-nginx:80/prometheus"`|
+| `pdc.resources.limits.memory`                 | Memory limit for PDC                             | `1Gi`                                       |
+| `pdc.resources.requests.cpu`                  | CPU request for PDC                              | `1`                                         |
+| `pdc.resources.requests.memory`               | Memory request for PDC                           | `1Gi`                                       |
+| `pdc.image`                                   | Docker image for PDC                             | `alpine/k8s`                                |
+| `pdc.imageTag`                                | Tag for the PDC image                            | `1.32.1`                                    |
+| `pdc.nodeSelector`                            | Node selector for PDC pods                       | `allocationtags: duplo-observability`       |
+
 
 ## Usage
 

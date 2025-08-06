@@ -14,7 +14,7 @@ The following global settings can be configured in the `values.yaml` file:
 | `global.customerName`        | Customer name                                | `""`                                                |
 | `global.environment`         | Deployment environment (e.g., prod, nonprod) | `""`                                                |
 | `global.namespace`           | Kubernetes namespace for the deployment      | `""`                                                |
-| `global.namespaceFilter`     | Regex filter for namespaces                  | `.+otel.+`                                          |
+| `global.namespaceFilter`     | Regex filter for namespaces                  | `.*otel.*`                                          |
 | `global.release`             | Release version                              | `2.1.1`                                             |
 | `global.grafanaProxyUrl`     | URL for Grafana Proxy                        | `""`                                                |
 | `global.slackWebhookUrl`     | Slack webhook URL for notifications          | `""`                                                |

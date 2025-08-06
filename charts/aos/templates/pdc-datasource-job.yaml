@@ -1,0 +1,52 @@
+{{- if .Values.pdc.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gc-pdc-datasource
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: pdc-datasource
+          image: "{{ .Values.pdc.image }}:{{ .Values.pdc.imageTag }}"
+          command:
+            - /bin/sh
+            - '-c'
+            - |
+              curl -X POST {{ .Values.pdc.config.gc_url }}/api/datasources \
+                -H "Authorization: Bearer {{ .Values.pdc.config.api_key }}" \
+                -H "Content-Type: application/json" \
+                --data-raw '{
+                  "name": "{{ $.Release.Namespace }}-metrics",
+                  "uid": "{{ $.Release.Namespace }}-metrics",
+                  "type": "prometheus",
+                  "url": "{{ .Values.pdc.config.aos_mimir_url }}",
+                  "access": "proxy",
+                  "basicAuth": false,
+                  "basicAuthUser": "",
+                  "jsonData": {
+                    "timeInterval": "10s",
+                    "enableSecureSocksProxy": true,
+                    "pdcInjected": true,
+                    "secureSocksProxyUsername": "{{ .Values.pdc.config.pdc_uid }}"
+                  }
+                }'
+          env:
+            - name: aos_mimir_url
+              value: {{ .Values.pdc.config.aos_mimir_url }}
+            - name: pdc_uid
+              value: {{ .Values.pdc.config.pdc_uid }}
+            - name: api_key
+              value: {{ .Values.pdc.config.api_key }}
+            - name: gc_url
+              value: {{ .Values.pdc.config.gc_url }}
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.pdc.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.pdc.nodeSelector | indent 8 }}
+{{- end }}
+---
+{{- end }} 

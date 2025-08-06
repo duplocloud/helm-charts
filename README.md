@@ -40,8 +40,7 @@ The `grafanaUI` section in `values.yaml` controls the Grafana UI deployment:
 | `grafanaUI.resources`                                   | Resource requests and limits for Grafana UI      | CPU: `100m`, Memory: `512Mi`          |
 | `grafanaUI.volume.size`                                 | Persistent volume size for Grafana UI            | `10Gi`                                |
 | `grafanaUI.nodeSelector`                                | Node selector for Grafana UI pods                | `allocationtags: duplo-observability` |
-| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app,`
-                                                                                                               `yesoreyeram-infinity-datasource,         volkovlabs-form-panel`                |
+| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel`                |
 | `grafanaUI.syntheticMonitoring.enabled`                 | Enable synthetic monitoring for Grafana Cloud    | `false`                               |
 | `grafanaUI.syntheticMonitoring.config.GC_INSTANCE_ID`   | Synthetic monitoring instance ID                 | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_HOST_ID`  | Loki host ID for synthetic monitoring            | `""`                                  |

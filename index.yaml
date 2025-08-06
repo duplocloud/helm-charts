@@ -3,6 +3,16 @@ entries:
   aos:
   - apiVersion: v2
     appVersion: 2.1.1
+    created: "2025-08-06T11:44:46.728362699Z"
+    description: Helm chart for Duplo OpenTelemetry stack
+    digest: 9c5c1a306436d54d15b8bfafb5c684d2a5159193ae4f4870edfffad77b39666b
+    name: aos
+    type: application
+    urls:
+    - https://github.com/duplocloud/helm-charts/releases/download/aos-2.1.6/aos-2.1.6.tgz
+    version: 2.1.6
+  - apiVersion: v2
+    appVersion: 2.1.1
     created: "2025-07-22T08:27:00.344592459Z"
     description: Helm chart for Duplo OpenTelemetry stack
     digest: d08fa6082f957ab13dd3ca37e4209c04131c1298d7b1f8242dec4bd431106095
@@ -151,4 +161,4 @@ entries:
     urls:
     - https://github.com/duplocloud/helm-charts/releases/download/aos-0.1.1/aos-0.1.1.tgz
     version: 0.1.1
-generated: "2025-07-22T08:27:00.344691425Z"
+generated: "2025-08-06T11:44:46.728500714Z"

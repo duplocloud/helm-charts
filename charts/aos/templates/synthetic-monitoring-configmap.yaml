@@ -46,7 +46,7 @@ data:
       editable: true
       type: prometheus
       access: proxy
-      url: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_mimir_url }}
+      url: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_mimir_url }}/api/prom
       basicAuth: true
       basicAuthUser: {{ .Values.grafanaUI.syntheticMonitoring.config.gc_mimir_host_id | int }}
       jsonData:

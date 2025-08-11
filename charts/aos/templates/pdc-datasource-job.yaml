@@ -21,24 +21,24 @@ spec:
             - |
               set -e
               echo "Creating datasource in Grafana Cloud..."
-              response=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST {{ .Values.pdc.config.gc_url }}/api/datasources \
-                -H "Authorization: Bearer {{ .Values.pdc.config.api_key }}" \
+              response=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST $gc_url/api/datasources \
+                -H "Authorization: Bearer $api_key" \
                 -H "Content-Type: application/json" \
-                --data-raw '{
-                  "name": "{{ $.Release.Namespace }}-metrics",
-                  "uid": "{{ $.Release.Namespace }}-metrics",
-                  "type": "prometheus",
-                  "url": "{{ .Values.pdc.config.aos_mimir_url }}",
-                  "access": "proxy",
-                  "basicAuth": false,
-                  "basicAuthUser": "",
-                  "jsonData": {
-                    "timeInterval": "10s",
-                    "enableSecureSocksProxy": true,
-                    "pdcInjected": true,
-                    "secureSocksProxyUsername": "{{ .Values.pdc.config.pdc_uid }}"
+                --data-raw "{
+                  \"name\": \"{{ $.Release.Namespace }}-metrics\",
+                  \"uid\": \"{{ $.Release.Namespace }}-metrics\",
+                  \"type\": \"prometheus\",
+                  \"url\": \"$aos_mimir_url\",
+                  \"access\": \"proxy\",
+                  \"basicAuth\": false,
+                  \"basicAuthUser\": \"\",
+                  \"jsonData\": {
+                    \"timeInterval\": \"10s\",
+                    \"enableSecureSocksProxy\": true,
+                    \"pdcInjected\": true,
+                    \"secureSocksProxyUsername\": \"$pdc_uid\"
                   }
-                }')
+                }")
 
               if [ "$response" -eq 409 ]; then
                 echo "Datasource already exists, skipping creation."

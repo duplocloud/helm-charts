@@ -4,6 +4,10 @@ kind: Job
 metadata:
   name: gc-pdc-datasource
   namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   backoffLimit: 0
   template:
@@ -13,26 +17,40 @@ spec:
           image: "{{ .Values.pdc.image }}:{{ .Values.pdc.imageTag }}"
           command:
             - /bin/sh
-            - '-c'
+            - -c
             - |
-              curl -X POST {{ .Values.pdc.config.gc_url }}/api/datasources \
-                -H "Authorization: Bearer {{ .Values.pdc.config.api_key }}" \
+              set -e
+              echo "Creating datasource in Grafana Cloud..."
+              response=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST $gc_url/api/datasources \
+                -H "Authorization: Bearer $api_key" \
                 -H "Content-Type: application/json" \
-                --data-raw '{
-                  "name": "{{ $.Release.Namespace }}-metrics",
-                  "uid": "{{ $.Release.Namespace }}-metrics",
-                  "type": "prometheus",
-                  "url": "{{ .Values.pdc.config.aos_mimir_url }}",
-                  "access": "proxy",
-                  "basicAuth": false,
-                  "basicAuthUser": "",
-                  "jsonData": {
-                    "timeInterval": "10s",
-                    "enableSecureSocksProxy": true,
-                    "pdcInjected": true,
-                    "secureSocksProxyUsername": "{{ .Values.pdc.config.pdc_uid }}"
+                --data-raw "{
+                  \"name\": \"{{ $.Release.Namespace }}-metrics\",
+                  \"uid\": \"{{ $.Release.Namespace }}-metrics\",
+                  \"type\": \"prometheus\",
+                  \"url\": \"$aos_mimir_url\",
+                  \"access\": \"proxy\",
+                  \"basicAuth\": false,
+                  \"basicAuthUser\": \"\",
+                  \"jsonData\": {
+                    \"timeInterval\": \"10s\",
+                    \"enableSecureSocksProxy\": true,
+                    \"pdcInjected\": true,
+                    \"secureSocksProxyUsername\": \"$pdc_uid\"
                   }
-                }'
+                }")
+
+              if [ "$response" -eq 409 ]; then
+                echo "Datasource already exists, skipping creation."
+                exit 0
+              elif [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
+                echo "Datasource created successfully."
+                exit 0
+              else
+                echo "Failed to create datasource. Status code: $response"
+                cat /tmp/response.json
+                exit 1
+              fi
           env:
             - name: aos_mimir_url
               value: {{ .Values.pdc.config.aos_mimir_url }}

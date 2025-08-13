@@ -26,7 +26,7 @@ spec:
               done
               echo "Triggering Duplo automation integration..."
               branchName="{{ .Values.global.duploReleaseBranch }}"
-              INTEGRATIONS="apm linuxnode kubernetes slo mimir loki tempo duplo-common"
+              INTEGRATIONS="apm-v3 linuxnode kubernetes slo mimir loki tempo duplo-common"
               if [ "{{ .Values.global.cloud }}" == "aws" ]; then
                 INTEGRATIONS="$INTEGRATIONS aws-cloudwatch"
               fi

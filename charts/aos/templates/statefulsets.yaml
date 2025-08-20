@@ -189,6 +189,28 @@ spec:
               value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
             - name: AOS_NAMESPACE_FILTER
               value: "{{ .Values.global.namespaceFilter }}"
+          {{- if .Values.aiSuite.enabled }}
+            - name: AI_SUITE_ENABLED
+              value: "true"
+            - name: AI_SUITE_DUPLO_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: duplo-automation
+                  key: duplo_host
+            - name: AI_SUITE_DUPLO_DEFAULT_TENANT
+              valueFrom:
+                secretKeyRef:
+                  name: duplo-automation
+                  key: duplo_default_tenant
+            - name: AI_SUITE_DUPLO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: duplo-automation
+                  key: duplo_token
+          {{- else }}
+            - name: AI_SUITE_ENABLED
+              value: "false"
+          {{- end }}
           {{- if eq .Values.global.cloud "aws" }}
             - name: AOS_REGION
               value: "{{ .Values.global.AOSRegion }}"

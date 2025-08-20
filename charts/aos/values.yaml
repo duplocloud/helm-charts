@@ -55,6 +55,12 @@ duploAutomation:
   nodeSelector: 
     allocationtags: duplo-observability
 
+# AI Suite settings
+aiSuite:
+  enabled: false
+  duplo_token: ""
+  duplo_default_tenant: ""
+
 # Grafana Proxy settings
 grafanaProxy:
   enabled: true

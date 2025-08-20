@@ -65,6 +65,16 @@ The `pdc` section in `values.yaml` controls the Private Data Source (PDC) deploy
 | `pdc.imageTag`                                | Tag for the PDC image                            | `1.32.1`                                    |
 | `pdc.nodeSelector`                            | Node selector for PDC pods                       | `allocationtags: duplo-observability`       |
 
+## AI Suite Configuration
+
+The `aiSuite` section in `values.yaml` controls the AI Suite integration:
+
+| Key                        | Description                                | Default Value |
+|----------------------------|--------------------------------------------|--------------|
+| `aiSuite.enabled`          | Enable or disable AI Suite integration     | `false`      |
+| `aiSuite.duplo_token`      | Duplo token for AI Suite                   | `""`         |
+| `aiSuite.duplo_default_tenant` | Default tenant for AI Suite             | `""`         |
+
 ## 📝 Usage Instructions
 
 ### 1️⃣ Add the Helm Repository

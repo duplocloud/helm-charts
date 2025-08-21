@@ -1,9 +1,9 @@
 name: Release Charts
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch:  # Allow manual trigger  
+  push:
+    branches:
+      - main
 
 jobs:
   release:
@@ -20,28 +20,6 @@ jobs:
         run: |
           git config user.name "srikarduplo"
           git config user.email "srikar@duplocloud.net"
-
-      - name: Update Chart.yaml version
-        run: |
-          CHART_FILE="charts/aos/Chart.yaml"
-          # Get the release tag and remove the 'v' prefix if it exists
-          RELEASE_VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
-          
-          # Update version in Chart.yaml
-          sed -i "s/^version: .*/version: $RELEASE_VERSION/" $CHART_FILE
-          
-          echo "Updated $CHART_FILE to version $RELEASE_VERSION"
-
-      - name: Commit and push Chart.yaml changes
-        run: |
-          git add charts/aos/Chart.yaml
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Update chart version to ${{ github.ref_name }}"
-            git push
-          fi
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0

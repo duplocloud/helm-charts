@@ -62,6 +62,27 @@ spec:
                 secretKeyRef:
                   name: grafanaui
                   key: password
+          {{- if .Values.grafanaUI.smtp.enabled }}
+            - name: GF_SMTP_ENABLED
+              value: 'true'
+            - name: GF_SMTP_HOST
+              value: value: {{ printf "%s:%s" .Values.grafanaUI.smtp.config.host .Values.grafanaUI.smtp.config.port | quote }}
+            - name: GF_SMTP_STARTTLS_POLICY
+              value: {{ .Values.grafanaUI.smtp.config.starttlsPolicy | quote }}
+            - name: GF_SMTP_SKIP_VERIFY
+              value: 'true'
+            - name: GF_SMTP_FROM_ADDRESS
+              value: {{ .Values.grafanaUI.smtp.config.fromAddress | quote }}
+            - name: GF_SMTP_FROM_NAME
+              value: {{ .Values.grafanaUI.smtp.config.fromName | quote }}
+            - name: GF_SMTP_USER
+              value: {{ .Values.grafanaUI.smtp.config.username | quote }}
+            - name: GF_SMTP_PASSWORD
+              value: {{ .Values.grafanaUI.smtp.config.password | quote }}
+          {{- end }}
+          {{- with .Values.grafanaUI.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.grafanaUI.resources | nindent 12 }}
           volumeMounts:
@@ -189,6 +210,9 @@ spec:
               value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
             - name: AOS_NAMESPACE_FILTER
               value: "{{ .Values.global.namespaceFilter }}"
+          {{- with .Values.duploAutomation.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if .Values.aiSuite.enabled }}
             - name: AI_SUITE_ENABLED
               value: "true"

@@ -33,6 +33,16 @@ grafanaUI:
   nodeSelector: 
     allocationtags: duplo-observability
   plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
+  smtp:
+    enabled: false
+    config:
+      host: ""
+      port: "465"
+      username: ""
+      password: ""
+      fromAddress: ""
+      fromName: "Duplo AOS Alerts"
+      starttlsPolicy: "MandatoryStartTLS"
   syntheticMonitoring:
     enabled: false
     config:

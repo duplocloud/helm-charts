@@ -231,6 +231,10 @@ spec:
                 secretKeyRef:
                   name: duplo-automation
                   key: duplo_token
+            - name: AI_SUITE_INSTANCE_ID
+              value: "{{ .Values.aiSuite.agent_instance_id }}"
+            - name: AI_SUITE_AGENT_NAME
+              value: "{{ .Values.aiSuite.agent_name }}"
           {{- else }}
             - name: AI_SUITE_ENABLED
               value: "false"

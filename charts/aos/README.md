@@ -82,7 +82,9 @@ The `aiSuite` section in `values.yaml` controls the AI Suite integration:
 |----------------------------|--------------------------------------------|--------------|
 | `aiSuite.enabled`          | Enable or disable AI Suite integration     | `false`      |
 | `aiSuite.duplo_token`      | Duplo token for AI Suite                   | `""`         |
-| `aiSuite.duplo_default_tenant` | Default tenant for AI Suite             | `""`         |
+| `aiSuite.duplo_default_tenant` | Default tenant for AI Suite                | `""`         |
+| `aiSuite.agent_instance_id`         | Instance ID for the AI Suite agent         | `""`         |
+| `aiSuite.agent_name`                | Name for the AI Suite agent                | `""`         |
 
 ## Duplo Automation Configuration
 

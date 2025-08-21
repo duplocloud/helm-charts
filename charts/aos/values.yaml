@@ -70,6 +70,8 @@ aiSuite:
   enabled: false
   duplo_token: ""
   duplo_default_tenant: ""
+  agent_name: ""
+  agent_instance_id: ""
 
 # Grafana Proxy settings
 grafanaProxy:

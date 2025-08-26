@@ -66,7 +66,7 @@ spec:
             - name: GF_SMTP_ENABLED
               value: 'true'
             - name: GF_SMTP_HOST
-              value: value: {{ printf "%s:%s" .Values.grafanaUI.smtp.config.host .Values.grafanaUI.smtp.config.port | quote }}
+              value: {{ printf "%s:%s" .Values.grafanaUI.smtp.config.host .Values.grafanaUI.smtp.config.port | quote }}
             - name: GF_SMTP_STARTTLS_POLICY
               value: {{ .Values.grafanaUI.smtp.config.starttlsPolicy | quote }}
             - name: GF_SMTP_SKIP_VERIFY

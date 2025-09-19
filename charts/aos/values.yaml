@@ -137,7 +137,6 @@ pdc:
     allocationtags: duplo-observability
 # Tracing Backend Config settings  
 tracingBackendConfig:
-  enabled: false
   healthcheck:
     port: 3200
     path: /ready

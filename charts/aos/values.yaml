@@ -135,7 +135,8 @@ pdc:
   imageTag: "1.32.1"
   nodeSelector: 
     allocationtags: duplo-observability
-# Tracing Backend Config settings  
+
+# Tracing Healthcheck Configuration
 tracing:
   healthcheck:
     port: 3200

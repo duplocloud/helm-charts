@@ -8,8 +8,8 @@ spec:
   healthCheck:
     checkIntervalSec: 10
     healthyThreshold: 1
-    port: {{.Values.tracingBackendConfig.healthcheck.port }}
-    requestPath: {{.Values.tracingBackendConfig.healthcheck.path }}
+    port: {{.Values.tracing.healthcheck.port }}
+    requestPath: {{.Values.tracing.healthcheck.path }}
     timeoutSec: 5
     type: HTTP
     unhealthyThreshold: 5

@@ -144,4 +144,4 @@ tracing:
 
 # Blackbox Exporter settings
 blackbox-exporter:
-  enabled: true
+  enabled: false

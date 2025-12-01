@@ -7,5 +7,5 @@ appVersion: "2.1.1"
 dependencies:
   - name: duplo-blackbox-exporter
     version: "1.0.0"
-    repository: "file://blackbox-exporter"
+    repository: file://charts/blackbox-exporter
     condition: blackbox-exporter.enabled

@@ -141,3 +141,7 @@ tracing:
   healthcheck:
     port: 3200
     path: /ready
+
+# Blackbox Exporter settings
+blackbox-exporter:
+  enabled: true

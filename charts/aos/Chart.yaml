@@ -5,7 +5,7 @@ type: application
 version: 2.1.13
 appVersion: "2.1.1" 
 dependencies:
-  - name: blackbox-exporter
+  - name: duplo-blackbox-exporter
     version: "1.0.0"
     repository: "file://blackbox-exporter"
     condition: blackbox-exporter.enabled

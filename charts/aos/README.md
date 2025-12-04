@@ -122,6 +122,15 @@ duploAutomation:
       value: "value2"
 ```
 
+## Blackbox Exporter Configuration
+
+The `blackboxexporter` section in `values.yaml` controls the Blackbox Exporter deployment:
+
+| Key                              | Description                                              | Default Value         |
+|----------------------------------|----------------------------------------------------------|-----------------------|
+| `blackboxexporter.enabled`       | Enable or disable Blackbox Exporter                      | `false`               |
+
+
 These variables will be injected into the respective containers as environment variables.
 
 ## 📝 Usage Instructions

@@ -143,5 +143,5 @@ tracing:
     path: /ready
 
 # Blackbox Exporter settings
-blackbox-exporter:
+blackboxexporter:
   enabled: false

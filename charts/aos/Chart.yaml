@@ -8,4 +8,4 @@ dependencies:
   - name: blackbox-exporter
     version: "11.5.0"
     repository: file://charts/blackbox-exporter
-    condition: blackbox-exporter.enabled
+    condition: blackboxexporter.enabled

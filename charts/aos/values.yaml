@@ -141,3 +141,13 @@ tracing:
   healthcheck:
     port: 3200
     path: /ready
+
+# Integration Job settings
+otelValidationJob:
+  enabled: true
+  image: "alpine/k8s"
+  imageTag: "1.32.1"
+  nodeSelector: 
+    allocationtags: duplo-observability
+  
+

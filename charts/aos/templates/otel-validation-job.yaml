@@ -1,0 +1,262 @@
+{{- if .Values.otelValidationJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: duplo-otel-validation
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: otel-validation
+          image: "{{ .Values.otelValidationJob.image }}:{{ .Values.otelValidationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - '-c'
+            - |
+              set -euo pipefail
+              STATUS_LINES=""
+              ANY_FAIL=0
+              SLEEP=5
+              MAX_RETRIES=12   # ~1 minute total per check (tunable)
+
+              # --- Helper Functions ---
+
+              wait_until_ok() {
+                local url="$1"; local desc="$2"; local method="${3:-GET}"; local insecure="${4:-false}"
+                local i=0
+                # Using [ ] instead of (( )) for POSIX compliance
+                while [ "$i" -lt "$MAX_RETRIES" ]; do
+                  # We use set +e temporarily here to allow curl to fail during retries without exiting the script
+                  if [ "$insecure" = "true" ]; then
+                    set +e; curl -fsSk -X "$method" "$url" >/dev/null 2>&1; c_status=$?; set -e
+                  else
+                    set +e; curl -fsS -X "$method" "$url" >/dev/null 2>&1; c_status=$?; set -e
+                  fi
+
+                  if [ "$c_status" -eq 0 ]; then
+                    echo "OK: $desc ($url)"
+                    return 0
+                  fi
+                  i=$((i+1))
+                  sleep "$SLEEP"
+                done
+                echo "FAIL: $desc ($url)"
+                return 1
+              }
+
+              # POSIX compliant list checker
+              check_readiness_list() {
+                local name="$1"; local eps_str="$2"; local insecure="${3:-false}"
+
+                if [ -z "$(echo "$eps_str" | xargs)" ]; then
+                  STATUS_LINES="$STATUS_LINES\n❌ $name not ready (no endpoints provided)"
+                  ANY_FAIL=1
+                  # FIX: Return 0 so set -e doesn't kill the script. We logged the error already.
+                  return 0
+                fi
+
+                old_ifs="$IFS"; IFS=','; set -f; set -- $eps_str; set +f; IFS="$old_ifs"
+
+                for e in "$@"; do
+                  e_trim="$(echo "$e" | xargs)"
+                  if [ -z "$e_trim" ]; then continue; fi
+                  # The 'if' protects wait_until_ok returning 1 from set -e
+                  if wait_until_ok "$e_trim" "$name" "GET" "$insecure"; then
+                    STATUS_LINES="$STATUS_LINES\n✅ $name ready ($e_trim)"
+                    return 0
+                  fi
+                done
+
+                STATUS_LINES="$STATUS_LINES\n❌ $name not ready (checked: $eps_str)"
+                ANY_FAIL=1
+                # CRITICAL FIX: Return 0 so the main script continues to the next check.
+                # The failure is recorded in ANY_FAIL.
+                return 0
+              }
+
+              # POSIX compliant pattern checker
+              check_ingest_metric_patterns() {
+                local name="$1"; local eps_str="$2"; local patterns="$3"
+
+                if [ -z "$(echo "$eps_str" | xargs)" ]; then
+                  STATUS_LINES="$STATUS_LINES\n❌ $name metric check skipped (no endpoints provided)"
+                  ANY_FAIL=1
+                  # FIX: Return 0 to allow script continuation
+                  return 0
+                fi
+
+                old_ifs="$IFS"; IFS=','; set -f; set -- $eps_str; set +f; IFS="$old_ifs"
+
+                for e in "$@"; do
+                  e_trim="$(echo "$e" | xargs)"
+                  if [ -z "$e_trim" ]; then continue; fi
+
+                  set +e; out="$(curl -fsS "$e_trim" 2>/dev/null)"; set -e
+
+                  if [ -n "$out" ] && echo "$out" | grep -E -q "$patterns"; then
+                    STATUS_LINES="$STATUS_LINES\n✅ $name ingestion metric present ($e_trim)"
+                    return 0
+                  fi
+                done
+
+                STATUS_LINES="$STATUS_LINES\n❌ $name ingestion metric missing (checked: $eps_str)"
+                ANY_FAIL=1
+                # CRITICAL FIX: Return 0 to allow script continuation
+                return 0
+              }
+
+
+              # --- Main Execution ---
+
+              echo "=== OTEL FULLSTACK Distributed Validation ==="
+
+              # 1. Wait for Other K8s Jobs
+              echo "🔎 Waiting for Jobs in {{ .Release.Namespace }} namespace..."
+              while true; do
+                incomplete=$(kubectl get jobs -n {{ .Release.Namespace }} --no-headers \
+                  | grep -v "duplo-otel-validation" | awk '{print $1 " " $3}' | grep -v "1/1" || true)
+                if [ -z "$incomplete" ]; then
+                  echo "✅ All dependent jobs completed."
+                  STATUS_LINES="$STATUS_LINES\n✅ All dependent jobs completed"
+                  break
+                else
+                  echo "⏳ Still waiting: $incomplete"
+                  sleep 10
+                fi
+              done
+
+
+              # 2) Loki (gateway/distributor)
+              # Because check_readiness_list now returns 0 even on failure, the script continues.
+              check_readiness_list "Loki (query/frontend)" "${LOKI_QUERY_ENDPOINTS}" "false"
+              # Loki ingestion metrics (common metric names)
+              #check_ingest_metric_patterns "Loki" "${LOKI_INGEST_METRIC_ENDPOINTS}" "loki_distributor_ingester_clients|loki_request_duration_seconds_bucket"
+
+              # 3) Mimir (querier/distributor)
+              check_readiness_list "Mimir (query-frontend)" "${MIMIR_QUERY_ENDPOINTS}" "false"
+              check_ingest_metric_patterns "Mimir" "${MIMIR_INGEST_METRIC_ENDPOINTS}" "cortex_distributor_requests_in_total|cortex_ingester_active_series|cortex_distributor_received_samples_total"
+
+              # 4) Tempo (query-frontend)
+              check_readiness_list "Tempo (query-frontend)" "${TEMPO_QUERY_ENDPOINTS}" "false"
+              #check_ingest_metric_patterns "Tempo" "${TEMPO_INGEST_METRIC_ENDPOINTS}" "tempo_distributor_received_traces_total|tempo_distributor_received_spans_total|tempo_distributor_ingester_appended_traces_total"
+
+              # 5) Pyroscope
+              # The 'if' here handles the failure return code, so set -e doesn't trigger.
+              if wait_until_ok "${PYROSCOPE_ENDPOINT}" "Pyroscope /health" "GET" "false"; then
+                STATUS_LINES="$STATUS_LINES\n✅ Pyroscope ready (${PYROSCOPE_ENDPOINT})"
+              else
+                STATUS_LINES="$STATUS_LINES\n❌ Pyroscope not ready (${PYROSCOPE_ENDPOINT})"
+                ANY_FAIL=1
+              fi
+
+              # 6) OTel Collector health
+              if wait_until_ok "${OTEL_COLLECTOR_HEALTH}" "OTel Collector health" "GET" "false"; then
+                STATUS_LINES="$STATUS_LINES\n✅ OTel Collector healthy"
+              else
+                STATUS_LINES="$STATUS_LINES\n❌ OTel Collector not healthy"
+                ANY_FAIL=1
+              fi
+
+              # 7) Grafana health & counts
+              if wait_until_ok "${GRAFANA_URL}/api/health" "Grafana /api/health" "GET" "false"; then
+                STATUS_LINES="$STATUS_LINES\n✅ Grafana API OK"
+              else
+                STATUS_LINES="$STATUS_LINES\n❌ Grafana API failed"
+                ANY_FAIL=1
+              fi
+
+              # dashboard count
+              # Using set +e manually to handle curl failures gracefully
+              set +e; DASH_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/search?type=dash-db" 2>/dev/null)"; set -e
+              if [ -z "$DASH_JSON" ]; then DASH_JSON="[]"; fi
+              DASH_COUNT="$(echo "$DASH_JSON" | grep -o '"uid"' | wc -l || echo 0)"
+              STATUS_LINES="$STATUS_LINES\n✅ Dashboards: ${DASH_COUNT}"
+
+              # alert rules count
+              set +e; ALERT_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/alert-rules" 2>/dev/null)"; set -e
+              if [ -z "$ALERT_JSON" ]; then ALERT_JSON="[]"; fi
+              ALERT_COUNT="$(echo "$ALERT_JSON" | grep -o '"uid"' | wc -l || echo 0)"
+              STATUS_LINES="$STATUS_LINES\n✅ Alert rules: ${ALERT_COUNT}"
+
+              # contact points count
+              set +e; CONTACT_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/contact-points" 2>/dev/null)"; set -e
+              if [ -z "$CONTACT_JSON" ]; then CONTACT_JSON="[]"; fi
+              CONTACT_COUNT="$(echo "$CONTACT_JSON" | grep -o '"name"' | wc -l || echo 0)"
+              STATUS_LINES="$STATUS_LINES\nℹ️ Contact Points: ${CONTACT_COUNT}"
+
+              # notification policies
+              set +e; POLICIES="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/policies" 2>/dev/null)"; set -e
+              if echo "$POLICIES" | grep -q '"default"'; then
+                STATUS_LINES="$STATUS_LINES\n✅ Notification policies present"
+              else
+                STATUS_LINES="$STATUS_LINES\n❌ Notification policies missing"
+                ANY_FAIL=1
+              fi
+
+              # 8) Duplo Automation Validation
+              if wait_until_ok "${DUPLO_AUTOMATION}" "Duplo Automation /" "GET" "false"; then
+                STATUS_LINES="$STATUS_LINES\n✅ Duplo Automation healthy"
+              else
+                STATUS_LINES="$STATUS_LINES\n❌ Duplo Automation not healthy"
+                ANY_FAIL=1
+              fi
+
+              ##############################################
+              # Final Report
+              ##############################################
+              echo -e "\n=== Validation Summary ==="
+              echo -e "$STATUS_LINES"
+              echo "=========================="
+
+              if [ "$ANY_FAIL" -eq 1 ]; then
+                echo "❌ Validation FAILED."
+                exit 1
+              else
+                echo "✅ Validation SUCCESS."
+                exit 0
+              fi
+              
+          env:
+          - name: SLACK_WEBHOOK_URL
+            value: {{ .Values.global.slackWebhookUrl }}
+          - name: GRAFANA_USER
+            value: {{ .Values.secrets.grafanaUI.username }}
+          - name: GRAFANA_PASS
+            value: {{ .Values.secrets.grafanaUI.password }}
+          # Service endpoints — set these to your actual service names if different
+          - name: LOKI_QUERY_ENDPOINTS
+            value: "http://duplo-logging-gateway.{{ .Release.Namespace }}.svc:80"   # comma-separated
+          - name: LOKI_INGEST_METRIC_ENDPOINTS
+            value: "http://duplo-logging-backend.{{ .Release.Namespace }}.svc:3100/metrics"     # comma-separated
+          - name: MIMIR_QUERY_ENDPOINTS
+            value: "http://duplo-metrics-querier.{{ .Release.Namespace }}.svc:8080/ready"
+          - name: MIMIR_INGEST_METRIC_ENDPOINTS
+            value: "http://duplo-metrics-distributor.{{ .Release.Namespace }}.svc:8080/metrics"
+          - name: TEMPO_QUERY_ENDPOINTS
+            value: "http://duplo-tracing-query-frontend.{{ .Release.Namespace }}.svc:3200/ready"
+          - name: TEMPO_INGEST_METRIC_ENDPOINTS
+            value: "http://duplo-tracing-distributor.{{ .Release.Namespace }}.svc:3200/metrics"
+          - name: PYROSCOPE_ENDPOINT
+            value: "http://duplo-profiling.{{ .Release.Namespace }}.svc:4040/ready"
+          - name: OTEL_COLLECTOR_HEALTH
+            value: "http://opentelemetry-operator.{{ .Release.Namespace }}.svc:8080/metrics"
+          - name: GRAFANA_URL
+            value: "http://grafana-ui:3000"
+          - name: DUPLO_AUTOMATION
+            value: "http://duplo-automation:5000"
+          - name: STRICT_FAIL
+            value: "true"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.pdc.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.pdc.nodeSelector | indent 8 }}
+{{- end }}
+---
+{{- end }}

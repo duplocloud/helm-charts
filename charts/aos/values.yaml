@@ -136,6 +136,12 @@ pdc:
   nodeSelector: 
     allocationtags: duplo-observability
 
+# Tracing Healthcheck Configuration
+tracing:
+  healthcheck:
+    port: 3200
+    path: /ready
+
 # Integration Job settings
 otelValidationJob:
   enabled: true

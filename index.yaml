@@ -3,6 +3,21 @@ entries:
   aos:
   - apiVersion: v2
     appVersion: 2.1.1
+    created: "2025-12-10T10:31:06.179101521Z"
+    dependencies:
+    - condition: blackboxexporter.enabled
+      name: blackbox-exporter
+      repository: file://charts/blackbox-exporter
+      version: 11.5.0
+    description: Helm chart for Duplo OpenTelemetry stack
+    digest: f1d62bd11698e54f8a971eb9852bc0b44381576782f518d28fbb5240282fe94d
+    name: aos
+    type: application
+    urls:
+    - https://github.com/duplocloud/helm-charts/releases/download/aos-2.1.13/aos-2.1.13.tgz
+    version: 2.1.13
+  - apiVersion: v2
+    appVersion: 2.1.1
     created: "2025-09-25T06:03:51.446468808Z"
     description: Helm chart for Duplo OpenTelemetry stack
     digest: b0de5b6cd2bbefcffa4be3c0f113c99af2464e7147ecc8608da09890bbf049b9
@@ -211,4 +226,4 @@ entries:
     urls:
     - https://github.com/duplocloud/helm-charts/releases/download/aos-0.1.1/aos-0.1.1.tgz
     version: 0.1.1
-generated: "2025-09-25T06:03:51.446613909Z"
+generated: "2025-12-10T10:31:06.179298918Z"

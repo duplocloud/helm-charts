@@ -2,5 +2,10 @@ apiVersion: v2
 name: aos
 description: Helm chart for Duplo OpenTelemetry stack
 type: application
-version: 2.1.12
+version: 2.1.13
 appVersion: "2.1.1" 
+dependencies:
+  - name: blackbox-exporter
+    version: "11.5.0"
+    repository: file://charts/blackbox-exporter
+    condition: blackboxexporter.enabled

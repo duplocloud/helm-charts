@@ -22,101 +22,46 @@ spec:
               set -euo pipefail
               STATUS_LINES=""
               ANY_FAIL=0
-              SLEEP=5
-              MAX_RETRIES=12   # ~1 minute total per check (tunable)
+              TIME_RANGE="5m"
+              CLUSTER="${CLUSTER_NAME:-unknown}"
 
               # --- Helper Functions ---
 
-              wait_until_ok() {
-                local url="$1"; local desc="$2"; local method="${3:-GET}"; local insecure="${4:-false}"
-                local i=0
-                # Using [ ] instead of (( )) for POSIX compliance
-                while [ "$i" -lt "$MAX_RETRIES" ]; do
-                  # We use set +e temporarily here to allow curl to fail during retries without exiting the script
-                  if [ "$insecure" = "true" ]; then
-                    set +e; curl -fsSk -X "$method" "$url" >/dev/null 2>&1; c_status=$?; set -e
-                  else
-                    set +e; curl -fsS -X "$method" "$url" >/dev/null 2>&1; c_status=$?; set -e
-                  fi
-
-                  if [ "$c_status" -eq 0 ]; then
-                    echo "OK: $desc ($url)"
-                    return 0
-                  fi
-                  i=$((i+1))
-                  sleep "$SLEEP"
-                done
-                echo "FAIL: $desc ($url)"
-                return 1
-              }
-
-              # POSIX compliant list checker
-              check_readiness_list() {
-                local name="$1"; local eps_str="$2"; local insecure="${3:-false}"
-
-                if [ -z "$(echo "$eps_str" | xargs)" ]; then
-                  STATUS_LINES="$STATUS_LINES\n❌ $name not ready (no endpoints provided)"
+              get_ds_id() {
+                local uid="$1"; local name="$2"
+                local resp
+                resp="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/datasources/uid/${uid}")" || {
+                  STATUS_LINES="$STATUS_LINES\n❌ ${name}: could not read datasource UID ${uid}"
                   ANY_FAIL=1
-                  # FIX: Return 0 so set -e doesn't kill the script. We logged the error already.
-                  return 0
-                fi
-
-                old_ifs="$IFS"; IFS=','; set -f; set -- $eps_str; set +f; IFS="$old_ifs"
-
-                for e in "$@"; do
-                  e_trim="$(echo "$e" | xargs)"
-                  if [ -z "$e_trim" ]; then continue; fi
-                  # The 'if' protects wait_until_ok returning 1 from set -e
-                  if wait_until_ok "$e_trim" "$name" "GET" "$insecure"; then
-                    STATUS_LINES="$STATUS_LINES\n✅ $name ready ($e_trim)"
-                    return 0
-                  fi
-                done
-
-                STATUS_LINES="$STATUS_LINES\n❌ $name not ready (checked: $eps_str)"
-                ANY_FAIL=1
-                # CRITICAL FIX: Return 0 so the main script continues to the next check.
-                # The failure is recorded in ANY_FAIL.
-                return 0
-              }
-
-              # POSIX compliant pattern checker
-              check_ingest_metric_patterns() {
-                local name="$1"; local eps_str="$2"; local patterns="$3"
-
-                if [ -z "$(echo "$eps_str" | xargs)" ]; then
-                  STATUS_LINES="$STATUS_LINES\n❌ $name metric check skipped (no endpoints provided)"
+                  return 1
+                }
+                id_val="$(echo "$resp" | sed -n 's/.*"id":[ ]*\([0-9][0-9]*\).*/\1/p' | head -n1)"
+                if [ -z "$id_val" ]; then
+                  STATUS_LINES="$STATUS_LINES\n❌ ${name}: datasource UID ${uid} missing id"
                   ANY_FAIL=1
-                  # FIX: Return 0 to allow script continuation
-                  return 0
+                  return 1
                 fi
-
-                old_ifs="$IFS"; IFS=','; set -f; set -- $eps_str; set +f; IFS="$old_ifs"
-
-                for e in "$@"; do
-                  e_trim="$(echo "$e" | xargs)"
-                  if [ -z "$e_trim" ]; then continue; fi
-
-                  set +e; out="$(curl -fsS "$e_trim" 2>/dev/null)"; set -e
-
-                  if [ -n "$out" ] && echo "$out" | grep -E -q "$patterns"; then
-                    STATUS_LINES="$STATUS_LINES\n✅ $name ingestion metric present ($e_trim)"
-                    return 0
-                  fi
-                done
-
-                STATUS_LINES="$STATUS_LINES\n❌ $name ingestion metric missing (checked: $eps_str)"
-                ANY_FAIL=1
-                # CRITICAL FIX: Return 0 to allow script continuation
-                return 0
+                echo "$id_val"
               }
 
+              add_status() {
+                local ok="$1"; shift
+                local msg="$*"
+                # Log each check as it is evaluated for pre-deploy visibility
+                echo "CHECK: $msg (ok=$ok)"
+                if [ "$ok" -eq 0 ]; then
+                  STATUS_LINES="$STATUS_LINES\n✅ $msg"
+                else
+                  STATUS_LINES="$STATUS_LINES\n❌ $msg"
+                  ANY_FAIL=1
+                fi
+              }
 
               # --- Main Execution ---
 
-              echo "=== OTEL FULLSTACK Distributed Validation ==="
+              echo "=== OTEL FULLSTACK Grafana Validation ==="
 
-              # 1. Wait for Other K8s Jobs
+              # Wait for other hook jobs to finish before validation
               echo "🔎 Waiting for Jobs in {{ .Release.Namespace }} namespace..."
               while true; do
                 incomplete=$(kubectl get jobs -n {{ .Release.Namespace }} --no-headers \
@@ -131,80 +76,108 @@ spec:
                 fi
               done
 
+              # Resolve datasource IDs
+              echo "Resolving Grafana datasource IDs..."
+              LOKI_DS_ID="$(get_ds_id "${LOKI_DS_UID}" "Loki")" || true
+              MIMIR_DS_ID="$(get_ds_id "${MIMIR_DS_UID}" "Mimir")" || true
+              TEMPO_DS_ID="$(get_ds_id "${TEMPO_DS_UID}" "Tempo")" || true
+              PYRO_DS_ID="$(get_ds_id "${PYRO_DS_UID}" "Pyroscope")" || true
 
-              # 2) Loki (gateway/distributor)
-              # Because check_readiness_list now returns 0 even on failure, the script continues.
-              check_readiness_list "Loki (query/frontend)" "${LOKI_QUERY_ENDPOINTS}" "false"
-              # Loki ingestion metrics (common metric names)
-              #check_ingest_metric_patterns "Loki" "${LOKI_INGEST_METRIC_ENDPOINTS}" "loki_distributor_ingester_clients|loki_request_duration_seconds_bucket"
+              END_S=$(date +%s)
+              START_S=$((END_S-300))
+              END_NS=$((END_S*1000000000))     # epoch seconds -> ns
+              START_NS=$((START_S*1000000000)) # last 5m in ns
+              END_MS=$((END_S*1000))           # epoch seconds -> ms
+              START_MS=$((START_S*1000))        # last 5m in ms
 
-              # 3) Mimir (querier/distributor)
-              check_readiness_list "Mimir (query-frontend)" "${MIMIR_QUERY_ENDPOINTS}" "false"
-              check_ingest_metric_patterns "Mimir" "${MIMIR_INGEST_METRIC_ENDPOINTS}" "cortex_distributor_requests_in_total|cortex_ingester_active_series|cortex_distributor_received_samples_total"
-
-              # 4) Tempo (query-frontend)
-              check_readiness_list "Tempo (query-frontend)" "${TEMPO_QUERY_ENDPOINTS}" "false"
-              #check_ingest_metric_patterns "Tempo" "${TEMPO_INGEST_METRIC_ENDPOINTS}" "tempo_distributor_received_traces_total|tempo_distributor_received_spans_total|tempo_distributor_ingester_appended_traces_total"
-
-              # 5) Pyroscope
-              # The 'if' here handles the failure return code, so set -e doesn't trigger.
-              if wait_until_ok "${PYROSCOPE_ENDPOINT}" "Pyroscope /health" "GET" "false"; then
-                STATUS_LINES="$STATUS_LINES\n✅ Pyroscope ready (${PYROSCOPE_ENDPOINT})"
+              # Loki logs
+              if [ -n "$LOKI_DS_ID" ]; then
+                set +e
+                loki_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
+                  --data-urlencode "query={cluster=\"$CLUSTER\"}" \
+                  --data-urlencode "start=${START_NS}" \
+                  --data-urlencode "end=${END_NS}" \
+                  --data-urlencode "direction=backward" \
+                  --data-urlencode "limit=1" \
+                  "${GRAFANA_URL}/api/datasources/proxy/uid/${LOKI_DS_UID}/loki/api/v1/query_range" )"
+                loki_rc=$?
+                set -e
+                loki_body="$(echo "$loki_resp" | sed '$d')"
+                loki_status="$(echo "$loki_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
+                if [ $loki_rc -eq 0 ] && [ "$loki_status" -ge 400 ]; then loki_rc=1; fi
+                if [ $loki_rc -eq 0 ] && echo "$loki_body" | grep -q '"result":\[\]' ; then loki_rc=1; fi
+                if [ $loki_rc -ne 0 ]; then
+                  echo "DEBUG Loki status=$loki_status body=$(echo "$loki_body" | head -c 400)"
+                fi
+                add_status $loki_rc "Loki logs present for cluster=${CLUSTER}"
               else
-                STATUS_LINES="$STATUS_LINES\n❌ Pyroscope not ready (${PYROSCOPE_ENDPOINT})"
-                ANY_FAIL=1
+                add_status 1 "Loki datasource not resolved"
               fi
 
-              # 6) OTel Collector health
-              if wait_until_ok "${OTEL_COLLECTOR_HEALTH}" "OTel Collector health" "GET" "false"; then
-                STATUS_LINES="$STATUS_LINES\n✅ OTel Collector healthy"
+              # Mimir metrics
+              if [ -n "$MIMIR_DS_ID" ]; then
+                set +e
+                mimir_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
+                  --data-urlencode "query=sum by (cluster) (kube_pod_info{cluster=\"$CLUSTER\"})" \
+                  --data-urlencode "time=${END_S}" \
+                  "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/query" )"
+                mimir_rc=$?
+                set -e
+                mimir_body="$(echo "$mimir_resp" | sed '$d')"
+                mimir_status="$(echo "$mimir_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
+                if [ $mimir_rc -eq 0 ] && [ "$mimir_status" -ge 400 ]; then mimir_rc=1; fi
+                if [ $mimir_rc -eq 0 ] && echo "$mimir_body" | grep -q '"result":\[\]'; then mimir_rc=1; fi
+                if [ $mimir_rc -ne 0 ]; then
+                  echo "DEBUG Mimir status=$mimir_status body=$(echo "$mimir_body" | head -c 400)"
+                fi
+                add_status $mimir_rc "Mimir metrics present for cluster=${CLUSTER}"
               else
-                STATUS_LINES="$STATUS_LINES\n❌ OTel Collector not healthy"
-                ANY_FAIL=1
+                add_status 1 "Mimir datasource not resolved"
               fi
 
-              # 7) Grafana health & counts
-              if wait_until_ok "${GRAFANA_URL}/api/health" "Grafana /api/health" "GET" "false"; then
-                STATUS_LINES="$STATUS_LINES\n✅ Grafana API OK"
+              # Tempo traces
+              if [ -n "$TEMPO_DS_ID" ]; then
+                set +e
+                tempo_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
+                  --data-urlencode "query=resource.k8s.cluster.name=\"$CLUSTER\"" \
+                  --data-urlencode "limit=1" \
+                  --data-urlencode "start=${START_MS}" \
+                  --data-urlencode "end=${END_MS}" \
+                  "${GRAFANA_URL}/api/datasources/proxy/uid/${TEMPO_DS_UID}/api/search" )"
+                tempo_rc=$?
+                set -e
+                tempo_body="$(echo "$tempo_resp" | sed '$d')"
+                tempo_status="$(echo "$tempo_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
+                if [ $tempo_rc -eq 0 ] && [ "$tempo_status" -ge 400 ]; then tempo_rc=1; fi
+                if [ $tempo_rc -eq 0 ] && echo "$tempo_body" | grep -q '"traces":[[]'; then tempo_rc=1; fi
+                if [ $tempo_rc -ne 0 ]; then
+                  echo "DEBUG Tempo status=$tempo_status body=$(echo "$tempo_body" | head -c 400)"
+                fi
+                add_status $tempo_rc "Tempo traces present for cluster=${CLUSTER}"
               else
-                STATUS_LINES="$STATUS_LINES\n❌ Grafana API failed"
-                ANY_FAIL=1
+                add_status 1 "Tempo datasource not resolved"
               fi
 
-              # dashboard count
-              # Using set +e manually to handle curl failures gracefully
-              set +e; DASH_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/search?type=dash-db" 2>/dev/null)"; set -e
-              if [ -z "$DASH_JSON" ]; then DASH_JSON="[]"; fi
-              DASH_COUNT="$(echo "$DASH_JSON" | grep -o '"uid"' | wc -l || echo 0)"
-              STATUS_LINES="$STATUS_LINES\n✅ Dashboards: ${DASH_COUNT}"
-
-              # alert rules count
-              set +e; ALERT_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/alert-rules" 2>/dev/null)"; set -e
-              if [ -z "$ALERT_JSON" ]; then ALERT_JSON="[]"; fi
-              ALERT_COUNT="$(echo "$ALERT_JSON" | grep -o '"uid"' | wc -l || echo 0)"
-              STATUS_LINES="$STATUS_LINES\n✅ Alert rules: ${ALERT_COUNT}"
-
-              # contact points count
-              set +e; CONTACT_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/contact-points" 2>/dev/null)"; set -e
-              if [ -z "$CONTACT_JSON" ]; then CONTACT_JSON="[]"; fi
-              CONTACT_COUNT="$(echo "$CONTACT_JSON" | grep -o '"name"' | wc -l || echo 0)"
-              STATUS_LINES="$STATUS_LINES\nℹ️ Contact Points: ${CONTACT_COUNT}"
-
-              # notification policies
-              set +e; POLICIES="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/policies" 2>/dev/null)"; set -e
-              if echo "$POLICIES" | grep -q '"default"'; then
-                STATUS_LINES="$STATUS_LINES\n✅ Notification policies present"
+              # Pyroscope CPU profiles
+              if [ -n "$PYRO_DS_ID" ]; then
+                set +e
+                pyro_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
+                  --data-urlencode "query=scope:cpu:cpu:nanoseconds:sum{cluster=\"$CLUSTER\"}" \
+                  --data-urlencode "from=${START_S}" \
+                  --data-urlencode "until=${END_S}" \
+                  "${GRAFANA_URL}/api/datasources/proxy/uid/${PYRO_DS_UID}/render" )"
+                pyro_rc=$?
+                set -e
+                pyro_body="$(echo "$pyro_resp" | sed '$d')"
+                pyro_status="$(echo "$pyro_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
+                if [ $pyro_rc -eq 0 ] && [ "$pyro_status" -ge 400 ]; then pyro_rc=1; fi
+                if [ $pyro_rc -eq 0 ] && echo "$pyro_body" | grep -q '"values":\[\]'; then pyro_rc=1; fi
+                if [ $pyro_rc -ne 0 ]; then
+                  echo "DEBUG Pyroscope status=$pyro_status body=$(echo "$pyro_body" | head -c 400)"
+                fi
+                add_status $pyro_rc "Pyroscope CPU profiles present for cluster=${CLUSTER}"
               else
-                STATUS_LINES="$STATUS_LINES\n❌ Notification policies missing"
-                ANY_FAIL=1
-              fi
-
-              # 8) Duplo Automation Validation
-              if wait_until_ok "${DUPLO_AUTOMATION}" "Duplo Automation /" "GET" "false"; then
-                STATUS_LINES="$STATUS_LINES\n✅ Duplo Automation healthy"
-              else
-                STATUS_LINES="$STATUS_LINES\n❌ Duplo Automation not healthy"
-                ANY_FAIL=1
+                add_status 1 "Pyroscope datasource not resolved"
               fi
 
               ##############################################
@@ -214,6 +187,11 @@ spec:
               echo -e "$STATUS_LINES"
               echo "=========================="
 
+              if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+                payload="$(printf '{"text":"OTEL Validation for cluster %s\n%s"}' "$CLUSTER" "$(echo -e "$STATUS_LINES" | sed 's/"/\\"/g')" )"
+                curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" "$SLACK_WEBHOOK_URL" || true
+              fi
+
               if [ "$ANY_FAIL" -eq 1 ]; then
                 echo "❌ Validation FAILED."
                 exit 1
@@ -221,31 +199,30 @@ spec:
                 echo "✅ Validation SUCCESS."
                 exit 0
               fi
-              
           env:
           - name: SLACK_WEBHOOK_URL
             value: {{ .Values.global.slackWebhookUrl }}
+          - name: CLUSTER_NAME
+            value: {{ .Values.global.clusterName }}
+          - name: LOKI_DS_UID
+            value: "duplo-logging"
+          - name: MIMIR_DS_UID
+            value: "duplo-metrics"
+          - name: TEMPO_DS_UID
+            value: "duplo-tracing"
+          - name: PYRO_DS_UID
+            value: "duplo-profiling"
           - name: GRAFANA_USER
-            value: {{ .Values.secrets.grafanaUI.username }}
+            valueFrom:
+              secretKeyRef:
+                name: grafanaui
+                key: username
           - name: GRAFANA_PASS
-            value: {{ .Values.secrets.grafanaUI.password }}
+            valueFrom:
+              secretKeyRef:
+                name: grafanaui
+                key: password
           # Service endpoints — set these to your actual service names if different
-          - name: LOKI_QUERY_ENDPOINTS
-            value: "http://duplo-logging-gateway.{{ .Release.Namespace }}.svc:80"   # comma-separated
-          - name: LOKI_INGEST_METRIC_ENDPOINTS
-            value: "http://duplo-logging-backend.{{ .Release.Namespace }}.svc:3100/metrics"     # comma-separated
-          - name: MIMIR_QUERY_ENDPOINTS
-            value: "http://duplo-metrics-querier.{{ .Release.Namespace }}.svc:8080/ready"
-          - name: MIMIR_INGEST_METRIC_ENDPOINTS
-            value: "http://duplo-metrics-distributor.{{ .Release.Namespace }}.svc:8080/metrics"
-          - name: TEMPO_QUERY_ENDPOINTS
-            value: "http://duplo-tracing-query-frontend.{{ .Release.Namespace }}.svc:3200/ready"
-          - name: TEMPO_INGEST_METRIC_ENDPOINTS
-            value: "http://duplo-tracing-distributor.{{ .Release.Namespace }}.svc:3200/metrics"
-          - name: PYROSCOPE_ENDPOINT
-            value: "http://duplo-profiling.{{ .Release.Namespace }}.svc:4040/ready"
-          - name: OTEL_COLLECTOR_HEALTH
-            value: "http://opentelemetry-operator.{{ .Release.Namespace }}.svc:8080/metrics"
           - name: GRAFANA_URL
             value: "http://grafana-ui:3000"
           - name: DUPLO_AUTOMATION

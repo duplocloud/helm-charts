@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   backoffLimit: 0
@@ -27,21 +27,36 @@ spec:
 
               # --- Helper Functions ---
 
+              call_api() {
+                local name="$1"; local url="$2"; shift 2
+                local out; local rc
+                set +e
+                out=$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "$url" "$@" 2>&1)
+                rc=$?
+                set -e
+                if [ $rc -ne 0 ]; then
+                  echo "DEBUG: $name failed (rc=$rc): $out" >&2
+                  return $rc
+                fi
+                echo "$out"
+              }
+
               get_ds_id() {
                 local uid="$1"; local name="$2"
                 local resp
-                resp="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/datasources/uid/${uid}")" || {
+                if resp=$(call_api "${name} Datasource" "${GRAFANA_URL}/api/datasources/uid/${uid}"); then
+                  id_val="$(echo "$resp" | sed -n 's/.*"id":[ ]*\([0-9][0-9]*\).*/\1/p' | head -n1)"
+                  if [ -z "$id_val" ]; then
+                    STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: datasource UID ${uid} missing id"
+                    ANY_FAIL=1
+                    return 1
+                  fi
+                  echo "$id_val"
+                else
                   STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: could not read datasource UID ${uid}"
                   ANY_FAIL=1
                   return 1
-                }
-                id_val="$(echo "$resp" | sed -n 's/.*"id":[ ]*\([0-9][0-9]*\).*/\1/p' | head -n1)"
-                if [ -z "$id_val" ]; then
-                  STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: datasource UID ${uid} missing id"
-                  ANY_FAIL=1
-                  return 1
                 fi
-                echo "$id_val"
               }
 
               add_status() {
@@ -75,6 +90,14 @@ spec:
                   sleep 10
                 fi
               done
+              
+              # Wait for Grafana to be ready
+              echo "🔎 Waiting for Grafana at ${GRAFANA_URL}..."
+              until curl -fsS "${GRAFANA_URL}/api/health" > /dev/null 2>&1; do
+                echo "⏳ Grafana is not ready yet... sleeping 10s"
+                sleep 10
+              done
+              echo "✅ Grafana is UP."
 
               # Resolve datasource IDs
               echo "Resolving Grafana datasource IDs..."
@@ -192,51 +215,93 @@ spec:
               fi
             
               # dashboard count
-              DASH_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/search?type=dash-db" 2>/dev/null || echo '[]')"
-              DASH_COUNT="$(echo "$DASH_JSON" | grep -o '"uid"' | wc -l || echo 0)"
-              STATUS_LINES="$STATUS_LINES\n\n  ✅ Dashboards: ${DASH_COUNT}"
-
-              ALERT_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/alert-rules" 2>/dev/null || echo '[]')"
-              ALERT_COUNT="$(echo "$ALERT_JSON" | grep -o '"title":' | wc -l | tr -d ' ' || echo 0)"
-              
-              if [ "$ALERT_COUNT" -gt 0 ]; then
-                STATUS_LINES="$STATUS_LINES\n\n  ✅ Alert rules: ${ALERT_COUNT}"
+              if DASH_JSON=$(call_api "Grafana Dashboards" "${GRAFANA_URL}/api/search?type=dash-db"); then
+                DASH_COUNT="$(echo "$DASH_JSON" | grep -o '"uid"' | wc -l || echo 0)"
+                STATUS_LINES="$STATUS_LINES\n\n  ✅ Dashboards: ${DASH_COUNT}"
               else
-                STATUS_LINES="$STATUS_LINES\n\n  ❌ Alert rules: 0"
+                STATUS_LINES="$STATUS_LINES\n\n  ❌ Dashboards: API call failed"
+                ANY_FAIL=1
+              fi
+
+              # alert rules
+              if ALERT_JSON=$(call_api "Grafana Alert Rules" "${GRAFANA_URL}/api/v1/provisioning/alert-rules"); then
+                ALERT_COUNT="$(echo "$ALERT_JSON" | grep -o '"title":' | wc -l | tr -d ' ' || echo 0)"
+                if [ "$ALERT_COUNT" -gt 0 ]; then
+                  STATUS_LINES="$STATUS_LINES\n\n  ✅ Alert rules: ${ALERT_COUNT}"
+                else
+                  STATUS_LINES="$STATUS_LINES\n\n  ❌ Alert rules: 0"
+                  ANY_FAIL=1
+                fi
+              else
+                STATUS_LINES="$STATUS_LINES\n\n  ❌ Alert rules: API call failed"
                 ANY_FAIL=1
               fi
 
               # Mimir Recording Rules
               if [ -n "${MIMIR_DS_UID}" ]; then
-                 MIMIR_REC_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" 2>/dev/null || echo '{}')"
-                 MIMIR_REC_COUNT="$(echo "$MIMIR_REC_JSON" | grep -o '"type":"recording"' | wc -l | tr -d ' ' || echo 0)"
-                 STATUS_LINES="$STATUS_LINES\n\n  ✅ Mimir Recording Rules: ${MIMIR_REC_COUNT}"
+                if MIMIR_REC_JSON=$(call_api "Mimir Recording Rules" "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" 2>/dev/null); then
+                   MIMIR_REC_COUNT="$(echo "$MIMIR_REC_JSON" | grep -o '"type":"recording"' | wc -l | tr -d ' ' || echo 0)"
+                   STATUS_LINES="$STATUS_LINES\n\n  ✅ Mimir Recording Rules: ${MIMIR_REC_COUNT}"
+                else
+                   STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Recording Rules: API call failed"
+                   ANY_FAIL=1
+                fi
               fi 
 
               if [ -n "${MIMIR_DS_UID}" ]; then
-                 MIMIR_RULES_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" 2>/dev/null || echo '{}')"
-                 MIMIR_RULE_COUNT="$(echo "$MIMIR_RULES_JSON" | grep -o '"type":"alerting"' | wc -l | tr -d ' ' || echo 0)"
-                 if [ "$MIMIR_RULE_COUNT" -gt 0 ]; then
-                    STATUS_LINES="$STATUS_LINES\n\n  ✅ Mimir Alert Rules: ${MIMIR_RULE_COUNT}"
-                 else
-                    STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Alert Rules: 0"
+                if MIMIR_RULES_JSON=$(call_api "Mimir Alert Rules" "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" 2>/dev/null); then
+                   MIMIR_RULE_COUNT="$(echo "$MIMIR_RULES_JSON" | grep -o '"type":"alerting"' | wc -l | tr -d ' ' || echo 0)"
+                   if [ "$MIMIR_RULE_COUNT" -gt 0 ]; then
+                      STATUS_LINES="$STATUS_LINES\n\n  ✅ Mimir Alert Rules: ${MIMIR_RULE_COUNT}"
+                   else
+                      STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Alert Rules: 0"
                     ANY_FAIL=1
-                 fi
+                   fi
+                else
+                   STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Alert Rules: API call failed"
+                   ANY_FAIL=1
+                fi
               fi 
 
               # contact points count
-              CONTACT_JSON="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/contact-points" 2>/dev/null || echo '[]')"
-              CONTACT_COUNT="$(echo "$CONTACT_JSON" | grep -o '"name"' | wc -l || echo 0)"
-              STATUS_LINES="$STATUS_LINES\n\n  ℹ️ Contact Points: ${CONTACT_COUNT}"
+              if CONTACT_JSON=$(call_api "Grafana Contact Points" "${GRAFANA_URL}/api/v1/provisioning/contact-points"); then
+                CONTACT_COUNT="$(echo "$CONTACT_JSON" | grep -o '"name"' | wc -l || echo 0)"
+                STATUS_LINES="$STATUS_LINES\n\n  ℹ️ Contact Points: ${CONTACT_COUNT}"
+              else
+                STATUS_LINES="$STATUS_LINES\n\n  ❌ Contact Points: API call failed"
+                ANY_FAIL=1
+              fi
 
               # notification policies
-              POLICIES="$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "${GRAFANA_URL}/api/v1/provisioning/policies" 2>/dev/null || echo '')"
-              if echo "$POLICIES" | grep -q '"default"'; then
-                STATUS_LINES="$STATUS_LINES\n\n  ✅ Notification policies present"
+              if POLICIES=$(call_api "Grafana Policies" "${GRAFANA_URL}/api/v1/provisioning/policies"); then
+                if echo "$POLICIES" | grep -q '"receiver"'; then
+                  POL_COUNT="$(echo "$POLICIES" | grep -o '"receiver"' | wc -l || echo 0)"
+                  STATUS_LINES="$STATUS_LINES\n\n  ✅ Grafana Notification policies: ${POL_COUNT}"
+                else
+                  STATUS_LINES="$STATUS_LINES\n\n  ❌ Grafana Notification policies missing"
+                  ANY_FAIL=1
+                fi
               else
-                STATUS_LINES="$STATUS_LINES\n\n  ❌ Notification policies missing"
+                STATUS_LINES="$STATUS_LINES\n\n  ❌ Grafana Notification policies: API call failed"
                 ANY_FAIL=1
-              fi 
+              fi
+
+              # Alertmanager policies
+              if [ -n "${AM_DS_UID}" ]; then
+                # Get the Alertmanager configuration from Grafana for this specific datasource
+                if AM_CONFIG=$(call_api "Alertmanager Config" "${GRAFANA_URL}/api/alertmanager/${AM_DS_UID}/config/api/v1/alerts"); then
+                  if echo "$AM_CONFIG" | grep -q '"receivers"' || echo "$AM_CONFIG" | grep -q 'receivers:'; then
+                    AM_POL_COUNT="$(echo "$AM_CONFIG" | grep -o '"receiver"' | wc -l || echo 0)"
+                    STATUS_LINES="$STATUS_LINES\n\n  ✅ Alertmanager Notification policies: ${AM_POL_COUNT}"
+                  else
+                    STATUS_LINES="$STATUS_LINES\n\n  ❌ Alertmanager Notification policies missing"
+                    ANY_FAIL=1
+                  fi
+                else
+                  STATUS_LINES="$STATUS_LINES\n\n  ❌ Alertmanager Notification policies: API call failed"
+                  ANY_FAIL=1
+                fi
+              fi
               
               ##############################################
               # 10. Slack Notification
@@ -274,6 +339,8 @@ spec:
             value: "duplo-tracing"
           - name: PYRO_DS_UID
             value: "duplo-profiling"
+          - name: AM_DS_UID
+            value: "duplo-alertmanager"
           - name: GRAFANA_USER
             valueFrom:
               secretKeyRef:

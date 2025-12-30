@@ -39,7 +39,9 @@ The `grafanaUI` section in `values.yaml` controls the Grafana UI deployment:
 | `grafanaUI.nodeSelector`                                | Node selector for Grafana UI pods                | `allocationtags: duplo-observability` |
 | `grafanaUI.extraEnv`          | Additional environment variables for Grafana UI (YAML list) | `[]` (none) |
 | `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel`|
+| `grafanaUI.extraPlugins`                                     | List of Grafana plugins to install               | `<plugin-name>`|
 | `grafanaUI.syntheticMonitoring.enabled`                 | Enable synthetic monitoring for Grafana Cloud    | `false`                               |
+| `grafanaUI.syntheticMonitoring.plugins`                 | synthetic monitoring plugin name    | `grafana-synthetic-monitoring-app`                               |
 | `grafanaUI.syntheticMonitoring.config.GC_INSTANCE_ID`   | Synthetic monitoring instance ID                 | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_HOST_ID`  | Loki host ID for synthetic monitoring            | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_URL`      | Loki URL for synthetic monitoring                | `""`                                  |

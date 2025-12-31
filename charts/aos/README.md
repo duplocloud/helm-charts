@@ -37,24 +37,24 @@ The `grafanaUI` section in `values.yaml` controls the Grafana UI deployment:
 | `grafanaUI.resources`                                   | Resource requests and limits for Grafana UI      | CPU: `100m`, Memory: `512Mi`          |
 | `grafanaUI.volume.size`                                 | Persistent volume size for Grafana UI            | `10Gi`                                |
 | `grafanaUI.nodeSelector`                                | Node selector for Grafana UI pods                | `allocationtags: duplo-observability` |
-| `grafanaUI.extraEnv`          | Additional environment variables for Grafana UI (YAML list) | `[]` (none) |
-| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel`|
-| `grafanaUI.extraPlugins`                                     | List of Grafana plugins to install               | `<plugin-name>`|
+| `grafanaUI.extraEnv`                                    | Additional environment variables for Grafana UI (YAML list) | `[]` (none)                |
+| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app 1.2.0,yesoreyeram-infinity-datasource 3.6.0,volkovlabs-form-panel 6.3.1`|
+| `grafanaUI.extraPlugins`                                | List of Grafana plugins to install               | `<plugin-name>`                       |
 | `grafanaUI.syntheticMonitoring.enabled`                 | Enable synthetic monitoring for Grafana Cloud    | `false`                               |
-| `grafanaUI.syntheticMonitoring.plugins`                 | synthetic monitoring plugin name    | `grafana-synthetic-monitoring-app`                               |
+| `grafanaUI.syntheticMonitoring.plugins`                 | synthetic monitoring plugin name                 | `grafana-synthetic-monitoring-app`                               |
 | `grafanaUI.syntheticMonitoring.config.GC_INSTANCE_ID`   | Synthetic monitoring instance ID                 | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_HOST_ID`  | Loki host ID for synthetic monitoring            | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_URL`      | Loki URL for synthetic monitoring                | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_MIMIR_HOST_ID` | Mimir host ID for synthetic monitoring           | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_MIMIR_URL`     | Mimir URL for synthetic monitoring               | `""`                                  |
-| `grafanaUI.smtp.enabled`         | Enable SMTP for Grafana UI notifications                | `false`                                |
-| `grafanaUI.smtp.config.host`     | SMTP server host                                       | `""`                                   |
-| `grafanaUI.smtp.config.port`     | SMTP server port                                       | `"465"`                                |
-| `grafanaUI.smtp.config.username` | SMTP username                                          | `""`                                   |
-| `grafanaUI.smtp.config.password` | SMTP password                                          | `""`                                   |
-| `grafanaUI.smtp.config.fromAddress` | From email address                                 | `""`                                   |
-| `grafanaUI.smtp.config.fromName` | From name for emails                                   | `"Duplo AOS Alerts"`                   |
-| `grafanaUI.smtp.config.starttlsPolicy` | STARTTLS policy                                 | `"MandatoryStartTLS"`                  |
+| `grafanaUI.smtp.enabled`                                | Enable SMTP for Grafana UI notifications         | `false`                               |
+| `grafanaUI.smtp.config.host`                            | SMTP server host                                 | `""`                                  |
+| `grafanaUI.smtp.config.port`                            | SMTP server port                                 | `"465"`                               |
+| `grafanaUI.smtp.config.username`                        | SMTP username                                    | `""`                                  |
+| `grafanaUI.smtp.config.password`                        | SMTP password                                    | `""`                                  |
+| `grafanaUI.smtp.config.fromAddress`                     | From email address                               | `""`                                  |
+| `grafanaUI.smtp.config.fromName`                        | From name for emails                             | `"Duplo AOS Alerts"`                  |
+| `grafanaUI.smtp.config.starttlsPolicy`                  | STARTTLS policy                                  | `"MandatoryStartTLS"`                 |
 
 ## Grafana Cloud PDC Configuration
 
@@ -80,27 +80,27 @@ The `pdc` section in `values.yaml` controls the Private Data Source (PDC) deploy
 
 The `aiSuite` section in `values.yaml` controls the AI Suite integration:
 
-| Key                        | Description                                | Default Value |
-|----------------------------|--------------------------------------------|--------------|
-| `aiSuite.enabled`          | Enable or disable AI Suite integration     | `false`      |
-| `aiSuite.duplo_token`      | Duplo token for AI Suite                   | `""`         |
+| Key                            | Description                                | Default Value |
+|--------------------------------|--------------------------------------------|--------------|
+| `aiSuite.enabled`              | Enable or disable AI Suite integration     | `false`      |
+| `aiSuite.duplo_token`          | Duplo token for AI Suite                   | `""`         |
 | `aiSuite.duplo_default_tenant` | Default tenant for AI Suite                | `""`         |
-| `aiSuite.agent_instance_id`         | Instance ID for the AI Suite agent         | `""`         |
-| `aiSuite.agent_name`                | Name for the AI Suite agent                | `""`         |
+| `aiSuite.agent_instance_id`    | Instance ID for the AI Suite agent         | `""`         |
+| `aiSuite.agent_name`           | Name for the AI Suite agent                | `""`         |
 
 ## Duplo Automation Configuration
 
 The `duploAutomation` section in `values.yaml` controls the Duplo Automation deployment:
 
-| Key                              | Description                                              | Default Value         |
-|----------------------------------|----------------------------------------------------------|----------------------|
-| `duploAutomation.enabled`        | Enable or disable Duplo Automation                       | `true`               |
-| `duploAutomation.replicas`       | Number of replicas for Duplo Automation                  | `1`                  |
-| `duploAutomation.image`          | Docker image for Duplo Automation                        | `duplocloud/duplo-automation` |
-| `duploAutomation.imageTag`       | Tag for the Duplo Automation image                       | `""`                 |
-| `duploAutomation.volume.size`    | Persistent volume size for Duplo Automation              | `10Gi`               |
+| Key                              | Description                                              | Default Value                         |
+|----------------------------------|----------------------------------------------------------|---------------------------------------|
+| `duploAutomation.enabled`        | Enable or disable Duplo Automation                       | `true`                                |
+| `duploAutomation.replicas`       | Number of replicas for Duplo Automation                  | `1`                                   |
+| `duploAutomation.image`          | Docker image for Duplo Automation                        | `duplocloud/duplo-automation`         |
+| `duploAutomation.imageTag`       | Tag for the Duplo Automation image                       | `""`                                  |
+| `duploAutomation.volume.size`    | Persistent volume size for Duplo Automation              | `10Gi`                                |
 | `duploAutomation.nodeSelector`   | Node selector for Duplo Automation pods                  | `allocationtags: duplo-observability` |
-| `duploAutomation.extraEnv`       | Additional environment variables for Duplo Automation (YAML list) | `[]` (none) |
+| `duploAutomation.extraEnv`       | Additional environment variables for Duplo Automation (YAML list) | `[]` (none)                  |
 
 ## Example: Adding Custom Environment Variables
 

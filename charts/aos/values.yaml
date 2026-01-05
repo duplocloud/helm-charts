@@ -32,6 +32,9 @@ grafanaUI:
     size: "10Gi"
   nodeSelector: 
     allocationtags: duplo-observability
+  persistence:
+    enabled: true
+    storageClass: ""
   plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
   smtp:
     enabled: false
@@ -64,6 +67,9 @@ duploAutomation:
     size: "10Gi"
   nodeSelector: 
     allocationtags: duplo-observability
+  persistence:
+    enabled: true
+    storageClass: ""
 
 # AI Suite settings
 aiSuite:

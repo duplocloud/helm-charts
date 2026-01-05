@@ -121,7 +121,7 @@ spec:
           requests:
             storage: {{ .Values.grafanaUI.volume.size }}
         {{- if .Values.grafanaUI.persistence.storageClass }}
-            storageClassName: {{ .Values.grafanaUI.persistence.storageClass }}
+        storageClassName: {{ .Values.grafanaUI.persistence.storageClass }}
         {{- end }}
 ---
 {{- end }}
@@ -274,7 +274,7 @@ spec:
           requests:
             storage: {{ .Values.duploAutomation.volume.size }}
         {{- if .Values.duploAutomation.persistence.storageClass }}
-            storageClassName: {{ .Values.duploAutomation.persistence.storageClass }}
+        storageClassName: {{ .Values.duploAutomation.persistence.storageClass }}
         {{- end }}
 ---
 {{- end }} 

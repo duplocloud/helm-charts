@@ -38,10 +38,10 @@ The `grafanaUI` section in `values.yaml` controls the Grafana UI deployment:
 | `grafanaUI.volume.size`                                 | Persistent volume size for Grafana UI            | `10Gi`                                |
 | `grafanaUI.nodeSelector`                                | Node selector for Grafana UI pods                | `allocationtags: duplo-observability` |
 | `grafanaUI.extraEnv`                                    | Additional environment variables for Grafana UI (YAML list) | `[]` (none)                |
-| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app 1.2.0,yesoreyeram-infinity-datasource 3.6.0,volkovlabs-form-panel 6.3.1`|
+| `grafanaUI.plugins`                                     | List of Grafana plugins to install               | `grafana-exploretraces-app 1.3.0,yesoreyeram-infinity-datasource 3.7.0,volkovlabs-form-panel 6.3.1`|
 | `grafanaUI.extraPlugins`                                | List of Grafana plugins to install               | `<plugin-name>`                       |
 | `grafanaUI.syntheticMonitoring.enabled`                 | Enable synthetic monitoring for Grafana Cloud    | `false`                               |
-| `grafanaUI.syntheticMonitoring.plugins`                 | synthetic monitoring plugin name                 | `grafana-synthetic-monitoring-app`                               |
+| `grafanaUI.syntheticMonitoring.plugins`                 | synthetic monitoring plugin name                 | `grafana-synthetic-monitoring-app 1.45.0`                               |
 | `grafanaUI.syntheticMonitoring.config.GC_INSTANCE_ID`   | Synthetic monitoring instance ID                 | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_HOST_ID`  | Loki host ID for synthetic monitoring            | `""`                                  |
 | `grafanaUI.syntheticMonitoring.config.GC_LOKI_URL`      | Loki URL for synthetic monitoring                | `""`                                  |

@@ -32,10 +32,11 @@ grafanaUI:
     size: "10Gi"
   nodeSelector: 
     allocationtags: duplo-observability
+  plugins: "grafana-lokiexplore-app@1.0.35,grafana-exploretraces-app@1.3.2,yesoreyeram-infinity-datasource@3.6.0,volkovlabs-form-panel@6.3.1"
+  extraPlugins: ""
   persistence:
     enabled: true
     storageClass: ""
-  plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
   smtp:
     enabled: false
     config:
@@ -48,6 +49,7 @@ grafanaUI:
       starttlsPolicy: "MandatoryStartTLS"
   syntheticMonitoring:
     enabled: false
+    plugins: "grafana-synthetic-monitoring-app@1.45.0"
     config:
       gc_instance_id: ""
       gc_loki_host_id: ""

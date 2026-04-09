@@ -48,7 +48,7 @@ spec:
               containerPort: 3000
               protocol: TCP
           env:
-            - name: GF_INSTALL_PLUGINS
+            - name: GF_PLUGINS_PREINSTALL_SYNC
               value: {{ printf "%s%s%s" .Values.grafanaUI.plugins (not (empty .Values.grafanaUI.extraPlugins) | ternary (printf ",%s" .Values.grafanaUI.extraPlugins) "") (.Values.grafanaUI.syntheticMonitoring.enabled | ternary (printf ",%s" .Values.grafanaUI.syntheticMonitoring.plugins) "") | quote }}
             - name: GF_SERVER_ROOT_URL
               value: "{{ .Values.global.grafanaProxyUrl }}"

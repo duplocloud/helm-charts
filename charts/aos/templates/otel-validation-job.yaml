@@ -55,22 +55,6 @@ spec:
                 secretKeyRef:
                   name: grafanaui
                   key: password
-            - name: LOKI_URL
-              value: "{{ .Values.otelValidationJob.lokiUrl }}"
-            - name: LOKI_TENANT_ID
-              value: "{{ .Values.otelValidationJob.lokiTenantId | default "anonymous" }}"
-            - name: MIMIR_URL
-              value: "{{ .Values.otelValidationJob.mimirUrl }}"
-            - name: MIMIR_TENANT_ID
-              value: "{{ .Values.otelValidationJob.mimirTenantId | default "anonymous" }}"
-            - name: TEMPO_URL
-              value: "{{ .Values.otelValidationJob.tempoUrl }}"
-            - name: TEMPO_TENANT_ID
-              value: "{{ .Values.otelValidationJob.tempoTenantId | default "anonymous" }}"
-            - name: AM_URL
-              value: "{{ .Values.otelValidationJob.amUrl }}"
-            - name: AM_TENANT_ID
-              value: "{{ .Values.otelValidationJob.amTenantId | default "anonymous" }}"
           volumeMounts:
             - name: script
               mountPath: /scripts

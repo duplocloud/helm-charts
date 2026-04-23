@@ -32,7 +32,7 @@ grafanaUI:
     size: "10Gi"
   nodeSelector: 
     allocationtags: duplo-observability
-  plugins: "grafana-lokiexplore-app@1.0.35,grafana-exploretraces-app@1.3.2,yesoreyeram-infinity-datasource@3.6.0,volkovlabs-form-panel@6.3.1"
+  plugins: "grafana-metricsdrilldown-app@2.0.2,grafana-lokiexplore-app@2.0.3,grafana-exploretraces-app@2.0.2,grafana-pyroscope-app@2.0.4,grafana-llm-app@1.0.8,yesoreyeram-infinity-datasource@3.8.0,volkovlabs-form-panel@6.3.2"
   extraPlugins: ""
   persistence:
     enabled: true
@@ -86,7 +86,7 @@ grafanaProxy:
   enabled: true
   replicas: 1
   image: "duplocloud/sso-proxy"
-  imageTag: "v2.0.4-otel"
+  imageTag: "v2.0.5-otel"
   resources:
     limits:
       cpu: "50m"

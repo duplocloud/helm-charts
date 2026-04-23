@@ -1,0 +1,358 @@
+{{- if .Values.otelValidationJob.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: duplo-otel-validation-script
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+data:
+  validate.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    # ── Tunables ────────────────────────────────────────────────────────────
+    LOOKBACK_SECONDS="${LOOKBACK_SECONDS:-900}"
+    CURL_TIMEOUT="${CURL_TIMEOUT:-30}"
+    CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-5}"
+    CURL_RETRIES="${CURL_RETRIES:-3}"
+    JOB_WAIT_TIMEOUT="${JOB_WAIT_TIMEOUT:-300}"
+    GRAFANA_WAIT_TIMEOUT="${GRAFANA_WAIT_TIMEOUT:-300}"
+    MIN_ALERT_RULES="${MIN_ALERT_RULES:-1}"
+    MIN_MIMIR_ALERT_RULES="${MIN_MIMIR_ALERT_RULES:-1}"
+    MIN_AM_POLICIES="${MIN_AM_POLICIES:-1}"
+    # ────────────────────────────────────────────────────────────────────────
+
+    STATUS_LINES=""
+    ANY_FAIL=0
+    CLUSTER="${CLUSTER_NAME:-unknown}"
+    GRAFANA_VERSION="unknown"
+    JOB_START_S="$(date +%s)"
+    HOOK_TYPE="$([ "${HELM_REVISION:-1}" = "1" ] && echo "Triggered by AOS Install 🆕" || echo "Triggered by AOS Upgrade 🔄")"
+    # Note: CLUSTER is updated to CLUSTER_NAME after Grafana is confirmed UP (Phase 1)
+
+    # ── Logging ─────────────────────────────────────────────────────────────
+    log()  { printf '[%s] INFO  %s\n' "$(date -u +%H:%M:%S)" "$*"; }
+    warn() { printf '[%s] WARN  %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
+    err()  { printf '[%s] ERROR %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
+    # ────────────────────────────────────────────────────────────────────────
+
+    # ── Credentials: write netrc so creds never appear in ps ────────────────
+    NETRC=$(mktemp)
+    chmod 600 "$NETRC"
+    {
+      printf 'machine %s login %s password %s\n' \
+        "$(echo "$GRAFANA_URL" | sed 's|https\?://||;s|[:/].*||')" \
+        "$GRAFANA_USER" "$GRAFANA_PASS"
+    } > "$NETRC"
+    # ────────────────────────────────────────────────────────────────────────
+
+    # ── Trap: always send summary and clean up on any exit ──────────────────
+    _on_exit() {
+      rm -f "$NETRC"
+      if [ "$ANY_FAIL" -ne 0 ]; then
+        send_summary "OTEL Validation — FAILED"
+      fi
+    }
+    trap '_on_exit' EXIT
+    # ────────────────────────────────────────────────────────────────────────
+
+    # ── Core helpers ────────────────────────────────────────────────────────
+
+    # call_api <name> <url> [extra curl args...]
+    # Returns response body on success, logs error and returns 1 on failure.
+    call_api() {
+      local name="$1"; local url="$2"; shift 2
+      local out; local rc
+      set +e
+      out=$(curl -fsS --netrc-file "$NETRC" \
+        --max-time "$CURL_TIMEOUT" \
+        --connect-timeout "$CURL_CONNECT_TIMEOUT" \
+        --retry "$CURL_RETRIES" --retry-all-errors \
+        "$url" "$@" 2>&1)
+      rc=$?
+      set -e
+      if [ $rc -ne 0 ]; then
+        err "$name failed (rc=$rc): $out"
+        return $rc
+      fi
+      echo "$out"
+    }
+
+    # get_ds_id <uid> <display-name>
+    # Echoes numeric datasource ID; sets ANY_FAIL and returns 1 on failure.
+    get_ds_id() {
+      local uid="$1"; local name="$2"
+      local resp; local id_val
+      if resp=$(call_api "${name} Datasource" "${GRAFANA_URL}/api/datasources/uid/${uid}"); then
+        id_val="$(echo "$resp" | jq -r '.id // empty')"
+        if [ -z "$id_val" ]; then
+          STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: datasource UID ${uid} missing id"
+          ANY_FAIL=1; return 1
+        fi
+        echo "$id_val"
+      else
+        STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: could not read datasource UID ${uid}"
+        ANY_FAIL=1; return 1
+      fi
+    }
+
+    # add_status <0|1> <message>
+    add_status() {
+      local ok="$1"; shift
+      local msg="$*"
+      log "CHECK: $msg (ok=$ok)"
+      if [ "$ok" -eq 0 ]; then
+        STATUS_LINES="$STATUS_LINES\n\n  ✅ $msg"
+      else
+        STATUS_LINES="$STATUS_LINES\n\n  ❌ $msg"
+        ANY_FAIL=1
+      fi
+    }
+
+    # add_warn <message> — highlights an issue without failing the job
+    add_warn() {
+      local msg="$*"
+      log "WARN: $msg"
+      STATUS_LINES="$STATUS_LINES\n\n  ⚠️ $msg"
+    }
+
+    # check_signal <name> <ds_id> <empty-grep-pattern> <url> [curl -G args...]
+    # Generic signal check: curl → strip HTTP status → detect empty result.
+    check_signal() {
+      local name="$1"; local ds_id="$2"
+      local empty_pat="$3"; local url="$4"; shift 4
+      if [ -z "$ds_id" ]; then
+        add_status 1 "${name} datasource not resolved for ${CLUSTER}"; return
+      fi
+      local resp; local rc
+      set +e
+      resp="$(curl -sS --netrc-file "$NETRC" -G \
+        --max-time "$CURL_TIMEOUT" --connect-timeout "$CURL_CONNECT_TIMEOUT" \
+        --retry "$CURL_RETRIES" --retry-all-errors \
+        -w '\nHTTP_STATUS:%{http_code}' \
+        "$@" "$url")"
+      rc=$?
+      set -e
+      local body status empty=0
+      body="$(echo "$resp" | sed '$d')"
+      status="$(echo "$resp" | tail -n1 | sed 's/HTTP_STATUS://')"
+      if [ $rc -eq 0 ] && [ "$status" -ge 400 ]; then rc=1; fi
+      if [ $rc -eq 0 ] && echo "$body" | grep -q "$empty_pat"; then empty=1; fi
+      if [ $rc -ne 0 ]; then
+        err "${name} status=$status body=$(echo "$body" | head -c 400)"
+        add_status 1 "${name} check for cluster=${CLUSTER}"
+      elif [ "$empty" -eq 1 ]; then
+        add_warn "${name} — no data yet for cluster=${CLUSTER} (instrumentation may be pending)"
+      else
+        add_status 0 "${name} check for cluster=${CLUSTER}"
+      fi
+    }
+
+    # check_config <name> <url> <jq-count-expr> <min-count> [info]
+    # Generic config check: call API → count with jq → pass/fail vs min-count.
+    # Pass info=1 to report as ℹ️ (never fails).
+    check_config() {
+      local name="$1"; local url="$2"; local jq_expr="$3"
+      local min_count="${4:-0}"; local info_only="${5:-0}"
+      shift 5 2>/dev/null || shift "$#" 2>/dev/null
+      local json; local count
+      if json=$(call_api "$name" "$url" "$@"); then
+        count="$(echo "$json" | jq -r "$jq_expr" 2>/dev/null || echo 0)"
+        if [ "$info_only" = "1" ]; then
+          STATUS_LINES="$STATUS_LINES\n\n  ℹ️ ${name}: ${count}"; return
+        fi
+        if [ "$count" -ge "$min_count" ]; then
+          STATUS_LINES="$STATUS_LINES\n\n  ✅ ${name}: ${count}"
+        else
+          STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: ${count} (need ≥ ${min_count})"
+          ANY_FAIL=1
+        fi
+      else
+        STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: API call failed"
+        ANY_FAIL=1
+      fi
+    }
+
+    # send_summary <title>
+    send_summary() {
+      local title="$1"
+      printf '\n=== %s ===\n' "$title"
+      printf '%b\n' "$STATUS_LINES"
+      printf '==========================\n'
+      if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+        local color label icon
+        if [ "${ANY_FAIL:-0}" -eq 0 ]; then
+          color="#36a64f"; label="SUCCESS"; icon=":white_check_mark:"
+        else
+          color="#dc3545"; label="FAILURE"; icon=":x:"
+        fi
+
+        # Header: [SUCCESS/FAILURE] customer - env — OTEL Validation Summary :icon:
+        local header_esc
+        header_esc="$(printf '*[%s] %s - %s — OTEL Validation Summary %s*' \
+          "$label" "$CUSTOMER" "$ENVIRONMENT" "$icon" | sed 's/"/\\"/g')"
+
+        # Context row: hook type only
+        local ctx_esc
+        ctx_esc="$(printf '%s' "$HOOK_TYPE" | sed 's/"/\\"/g')"
+
+        # Results: strip leading spaces, escape for JSON
+        local results_esc
+        results_esc="$(printf '%b' "$STATUS_LINES" | sed 's/^  //' | \
+          awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0}')"
+
+        # Loki URL with absolute timestamps: job_start-5min to now+5min
+        local from_ms to_ms loki_url
+        from_ms=$(( (JOB_START_S - 300) * 1000 ))
+        to_ms=$(( ($(date +%s) + 300) * 1000 ))
+        loki_url="${GRAFANA_PROXY_URL:-}/a/grafana-lokiexplore-app/explore/namespace/${NAMESPACE}/logs?patterns=%5B%5D&from=${from_ms}&to=${to_ms}&var-ds=${LOKI_DS_UID}&var-filters=namespace%7C%3D%7C${NAMESPACE}&var-filters=service_name%7C%3D%7Cotel-validation&var-fields=&var-levels=&var-metadata=&var-patterns=&var-lineFilterV2=&var-lineFilters=&timezone=browser&var-all-fields=&urlColumns=%5B%5D&visualizationType=%22logs%22&displayedFields=%5B%5D&sortOrder=%22Descending%22&wrapLogMessage=false"
+
+        # Body: results + inline Loki link
+        local body_esc
+        body_esc="${results_esc}\\n<${loki_url}|📋 View validation logs>"
+
+        local payload
+        payload="$(printf \
+          '{"attachments":[{"color":"%s","blocks":[{"type":"section","text":{"type":"mrkdwn","text":"%s"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"%s"}},{"type":"context","elements":[{"type":"mrkdwn","text":"AOS 📊  |  v%s  |  %s"}]}]}]}' \
+          "$color" "$header_esc" "$body_esc" "${AOS_RELEASE:-}" "$ctx_esc")"
+        curl -fsS --max-time 15 -X POST \
+          -H "Content-Type: application/json" \
+          -d "$payload" "$SLACK_WEBHOOK_URL" || warn "Slack notification failed"
+      fi
+    }
+
+    # ── Phase 1: Setup ───────────────────────────────────────────────────────
+    log "=== OTEL FULLSTACK Grafana Validation ==="
+
+    # Wait for sibling hook jobs with a deadline
+    log "Waiting for Jobs in ${NAMESPACE} namespace..."
+    JOB_DEADLINE=$(($(date +%s) + JOB_WAIT_TIMEOUT))
+    while true; do
+      if [ "$(date +%s)" -gt "$JOB_DEADLINE" ]; then
+        err "Timed out after ${JOB_WAIT_TIMEOUT}s waiting for sibling jobs"
+        exit 1
+      fi
+      incomplete=$(kubectl get jobs -n "$NAMESPACE" --no-headers \
+        | grep -v "duplo-otel-validation" \
+        | awk '{split($3,a,"/"); if(a[1]<a[2]) print $1, $3}' || true)
+      if [ -z "$incomplete" ]; then
+        log "All dependent jobs completed."
+        STATUS_LINES="$STATUS_LINES\n\n  ✅ All dependent jobs completed"
+        break
+      fi
+      log "Still waiting: $incomplete"
+      sleep 10
+    done
+
+    # Wait for Grafana with a deadline
+    log "Waiting for Grafana at ${GRAFANA_URL}..."
+    GRAFANA_DEADLINE=$(($(date +%s) + GRAFANA_WAIT_TIMEOUT))
+    until curl -fsS --max-time 5 "${GRAFANA_URL}/api/health" > /dev/null 2>&1; do
+      if [ "$(date +%s)" -gt "$GRAFANA_DEADLINE" ]; then
+        err "Timed out after ${GRAFANA_WAIT_TIMEOUT}s waiting for Grafana"
+        exit 1
+      fi
+      log "Grafana not ready yet, sleeping 10s..."
+      sleep 10
+    done
+    log "Grafana is UP."
+    GRAFANA_VERSION="$(curl -fsS --netrc-file "$NETRC" --max-time 10 \
+      "${GRAFANA_URL}/api/health" 2>/dev/null | jq -r '.version // "unknown"' 2>/dev/null || echo "unknown")"
+    log "Grafana version: ${GRAFANA_VERSION} | Hook: ${HOOK_TYPE}"
+
+    # Resolve datasource IDs
+    log "Resolving Grafana datasource IDs..."
+    LOKI_DS_ID="$(get_ds_id  "${LOKI_DS_UID}"  "Loki")"       || true
+    MIMIR_DS_ID="$(get_ds_id "${MIMIR_DS_UID}" "Mimir")"      || true
+    TEMPO_DS_ID="$(get_ds_id "${TEMPO_DS_UID}" "Tempo")"      || true
+    PYRO_DS_ID="$(get_ds_id  "${PYRO_DS_UID}"  "Pyroscope")"  || true
+
+    END_S=$(date +%s)
+    START_S=$((END_S - LOOKBACK_SECONDS))
+    END_NS=$((END_S * 1000000000))
+    START_NS=$((START_S * 1000000000))
+
+    log "Target Cluster: $CLUSTER"
+
+    # ── Phase 2: Signal checks (via Grafana datasource proxy) ───────────────
+    log "--- Phase 2: Signal Checks for Cluster: $CLUSTER ---"
+
+    check_signal "Loki logs" "$LOKI_DS_ID" '"result":\[\]' \
+      "${GRAFANA_URL}/api/datasources/proxy/uid/${LOKI_DS_UID}/loki/api/v1/query_range" \
+      --data-urlencode "query={cluster=\"$CLUSTER\"}" \
+      --data-urlencode "start=${START_NS}" \
+      --data-urlencode "end=${END_NS}" \
+      --data-urlencode "direction=backward" \
+      --data-urlencode "limit=1"
+
+    check_signal "Mimir metrics" "$MIMIR_DS_ID" '"result":\[\]' \
+      "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/query" \
+      --data-urlencode "query=sum by (cluster) (kube_pod_info{cluster=\"$CLUSTER\"})" \
+      --data-urlencode "time=${END_S}"
+
+    check_signal "Tempo traces" "$TEMPO_DS_ID" '"traces":\[\]' \
+      "${GRAFANA_URL}/api/datasources/proxy/uid/${TEMPO_DS_UID}/api/search" \
+      --data-urlencode "q={ resource.k8s.cluster.name = \"$CLUSTER\" || resource.cluster = \"$CLUSTER\" || resource.cluster.name = \"$CLUSTER\" }" \
+      --data-urlencode "limit=1" \
+      --data-urlencode "start=${START_S}" \
+      --data-urlencode "end=${END_S}"
+
+    check_signal "Pyroscope CPU profiles" "$PYRO_DS_ID" '"values":\[\]' \
+      "${GRAFANA_URL}/api/datasources/proxy/uid/${PYRO_DS_UID}/pyroscope/render" \
+      --data-urlencode "query=process_cpu:cpu:nanoseconds:cpu:nanoseconds:sum{cluster=\"$CLUSTER\"}" \
+      --data-urlencode "from=${START_S}" \
+      --data-urlencode "until=${END_S}"
+
+    if [ "$ANY_FAIL" -eq 1 ]; then
+      err "Signal checks failed. Skipping Grafana config checks."
+      exit 1
+    fi
+
+    # ── Phase 3: Config checks (via Grafana API) ─────────────────────────────
+    log "--- Phase 3: Grafana Config Checks ---"
+
+    check_config "Dashboards" \
+      "${GRAFANA_URL}/api/search?type=dash-db" \
+      'length' 0
+
+    check_config "Alert rules" \
+      "${GRAFANA_URL}/api/v1/provisioning/alert-rules" \
+      'length' "$MIN_ALERT_RULES"
+
+    check_config "Contact points" \
+      "${GRAFANA_URL}/api/v1/provisioning/contact-points" \
+      'length' 0 1   # info only
+
+    check_config "Grafana Notification policies" \
+      "${GRAFANA_URL}/api/v1/provisioning/policies" \
+      '[.. | objects | select(has("receiver"))] | length' "$MIN_AM_POLICIES"
+
+    check_config "Mimir Recording Rules" \
+      "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" \
+      '[.. | objects | select(.type=="recording")] | length' 0
+
+    check_config "Mimir Alert Rules" \
+      "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" \
+      '[.. | objects | select(.type=="alerting")] | length' "$MIN_MIMIR_ALERT_RULES"
+
+    check_config "Alertmanager Notification policies" \
+      "${GRAFANA_URL}/api/alertmanager/${AM_DS_UID}/config/api/v1/alerts" \
+      '.alertmanager_config.receivers | length' "$MIN_AM_POLICIES"
+
+    # ── Phase 4: Summary ─────────────────────────────────────────────────────
+    trap - EXIT   # cancel the failure trap — we'll send explicitly
+    rm -f "$NETRC"
+
+    if [ "$ANY_FAIL" -eq 1 ]; then
+      send_summary "OTEL Validation Summary — FAILED"
+      err "Validation FAILED."
+      exit 1
+    else
+      send_summary "OTEL Validation Summary — SUCCESS"
+      log "Validation SUCCESS."
+      exit 0
+    fi
+{{- end }}

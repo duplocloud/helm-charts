@@ -6,8 +6,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "0"
-    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation
 spec:
   backoffLimit: 0
   template:
@@ -15,360 +15,75 @@ spec:
       containers:
         - name: otel-validation
           image: "{{ .Values.otelValidationJob.image }}:{{ .Values.otelValidationJob.imageTag }}"
-          command:
-            - /bin/sh
-            - '-c'
-            - |
-              set -euo pipefail
-              STATUS_LINES=""
-              ANY_FAIL=0
-              TIME_RANGE="5m"
-              CLUSTER="${CLUSTER_NAME:-unknown}"
-
-              # --- Helper Functions ---
-
-              call_api() {
-                local name="$1"; local url="$2"; shift 2
-                local out; local rc
-                set +e
-                out=$(curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASS}" "$url" "$@" 2>&1)
-                rc=$?
-                set -e
-                if [ $rc -ne 0 ]; then
-                  echo "DEBUG: $name failed (rc=$rc): $out" >&2
-                  return $rc
-                fi
-                echo "$out"
-              }
-
-              get_ds_id() {
-                local uid="$1"; local name="$2"
-                local resp
-                if resp=$(call_api "${name} Datasource" "${GRAFANA_URL}/api/datasources/uid/${uid}"); then
-                  id_val="$(echo "$resp" | sed -n 's/.*"id":[ ]*\([0-9][0-9]*\).*/\1/p' | head -n1)"
-                  if [ -z "$id_val" ]; then
-                    STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: datasource UID ${uid} missing id"
-                    ANY_FAIL=1
-                    return 1
-                  fi
-                  echo "$id_val"
-                else
-                  STATUS_LINES="$STATUS_LINES\n\n  ❌ ${name}: could not read datasource UID ${uid}"
-                  ANY_FAIL=1
-                  return 1
-                fi
-              }
-
-              add_status() {
-                local ok="$1"; shift
-                local msg="$*"
-                # Log each check as it is evaluated for pre-deploy visibility
-                echo "CHECK: $msg (ok=$ok)"
-                if [ "$ok" -eq 0 ]; then
-                  STATUS_LINES="$STATUS_LINES\n\n  ✅ $msg"
-                else
-                  STATUS_LINES="$STATUS_LINES\n\n  ❌ $msg"
-                  ANY_FAIL=1
-                fi
-              }
-
-              # --- Main Execution ---
-
-              echo "=== OTEL FULLSTACK Grafana Validation ==="
-
-              # Wait for other hook jobs to finish before validation
-              echo "🔎 Waiting for Jobs in {{ .Release.Namespace }} namespace..."
-              while true; do
-                incomplete=$(kubectl get jobs -n {{ .Release.Namespace }} --no-headers \
-                  | grep -v "duplo-otel-validation" | awk '{print $1 " " $3}' | grep -v "1/1" || true)
-                if [ -z "$incomplete" ]; then
-                  echo "✅ All dependent jobs completed."
-                  STATUS_LINES="$STATUS_LINES\n\n  ✅ All dependent jobs completed"
-                  break
-                else
-                  echo "⏳ Still waiting: $incomplete"
-                  sleep 10
-                fi
-              done
-              
-              # Wait for Grafana to be ready
-              echo "🔎 Waiting for Grafana at ${GRAFANA_URL}..."
-              until curl -fsS "${GRAFANA_URL}/api/health" > /dev/null 2>&1; do
-                echo "⏳ Grafana is not ready yet... sleeping 10s"
-                sleep 10
-              done
-              echo "✅ Grafana is UP."
-
-              # Resolve datasource IDs
-              echo "Resolving Grafana datasource IDs..."
-              LOKI_DS_ID="$(get_ds_id "${LOKI_DS_UID}" "Loki")" || true
-              MIMIR_DS_ID="$(get_ds_id "${MIMIR_DS_UID}" "Mimir")" || true
-              TEMPO_DS_ID="$(get_ds_id "${TEMPO_DS_UID}" "Tempo")" || true
-              PYRO_DS_ID="$(get_ds_id "${PYRO_DS_UID}" "Pyroscope")" || true
-
-              END_S=$(date +%s)
-              START_S=$((END_S-900))
-              END_NS=$((END_S*1000000000))     # epoch seconds -> ns
-              START_NS=$((START_S*1000000000)) # last 5m in ns
-              END_MS=$((END_S*1000))           # epoch seconds -> ms
-              START_MS=$((START_S*1000))        # last 5m in ms
-
-              echo "Target Cluster: $CLUSTER_NAME"
-              CLUSTER="$CLUSTER_NAME"
-
-              # --- Validate Single Cluster ---
-              echo "---------------------------------------------------"
-              echo "🔍 Validating Cluster: $CLUSTER"
-                
-              # Loki logs
-                
-                # Loki logs
-                if [ -n "$LOKI_DS_ID" ]; then
-                  set +e
-                  loki_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
-                    --data-urlencode "query={cluster=\"$CLUSTER\"}" \
-                    --data-urlencode "start=${START_NS}" \
-                    --data-urlencode "end=${END_NS}" \
-                    --data-urlencode "direction=backward" \
-                    --data-urlencode "limit=1" \
-                    "${GRAFANA_URL}/api/datasources/proxy/uid/${LOKI_DS_UID}/loki/api/v1/query_range" )"
-                  loki_rc=$?
-                  set -e
-                  loki_body="$(echo "$loki_resp" | sed '$d')"
-                  loki_status="$(echo "$loki_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
-                  if [ $loki_rc -eq 0 ] && [ "$loki_status" -ge 400 ]; then loki_rc=1; fi
-                  if [ $loki_rc -eq 0 ] && echo "$loki_body" | grep -q '"result":\[\]' ; then loki_rc=1; fi
-                  
-                  # Allow some failures if it's strictly checking logs, or maybe we just log it.
-                  if [ $loki_rc -ne 0 ]; then
-                    echo "DEBUG Loki status=$loki_status body=$(echo "$loki_body" | head -c 400)"
-                  fi
-                  add_status $loki_rc "Loki logs check for cluster=${CLUSTER}"
-                else
-                  add_status 1 "Loki datasource not resolved for ${CLUSTER}"
-                fi
-  
-                # Mimir metrics
-                if [ -n "$MIMIR_DS_ID" ]; then
-                  set +e
-                  mimir_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
-                    --data-urlencode "query=sum by (cluster) (kube_pod_info{cluster=\"$CLUSTER\"})" \
-                    --data-urlencode "time=${END_S}" \
-                    "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/query" )"
-                  mimir_rc=$?
-                  set -e
-                  mimir_body="$(echo "$mimir_resp" | sed '$d')"
-                  mimir_status="$(echo "$mimir_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
-                  if [ $mimir_rc -eq 0 ] && [ "$mimir_status" -ge 400 ]; then mimir_rc=1; fi
-                  if [ $mimir_rc -eq 0 ] && echo "$mimir_body" | grep -q '"result":\[\]'; then mimir_rc=1; fi
-                  if [ $mimir_rc -ne 0 ]; then
-                    echo "DEBUG Mimir status=$mimir_status body=$(echo "$mimir_body" | head -c 400)"
-                  fi
-                  add_status $mimir_rc "Mimir metrics check for cluster=${CLUSTER}"
-                else
-                  add_status 1 "Mimir datasource not resolved for ${CLUSTER}"
-                fi
-  
-                # Tempo traces
-                if [ -n "$TEMPO_DS_ID" ]; then
-                  set +e
-                  tempo_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
-                    --data-urlencode "q={ resource.k8s.cluster.name = \"$CLUSTER\" || resource.cluster = \"$CLUSTER\" || resource.cluster.name = \"$CLUSTER\" }" \
-                    --data-urlencode "limit=1" \
-                    --data-urlencode "start=${START_S}" \
-                    --data-urlencode "end=${END_S}" \
-                    "${GRAFANA_URL}/api/datasources/proxy/uid/${TEMPO_DS_UID}/api/search" )"
-                  tempo_rc=$?
-                  set -e
-                  tempo_body="$(echo "$tempo_resp" | sed '$d')"
-                  tempo_status="$(echo "$tempo_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
-                  if [ $tempo_rc -eq 0 ] && [ "$tempo_status" -ge 400 ]; then tempo_rc=1; fi
-                  if [ $tempo_rc -eq 0 ] && echo "$tempo_body" | grep -q '"traces":\[\]'; then tempo_rc=1; fi
-                  if [ $tempo_rc -ne 0 ]; then
-                    echo "DEBUG Tempo status=$tempo_status body=$(echo "$tempo_body" | head -c 400)"
-                  fi
-                  add_status $tempo_rc "Tempo traces check for cluster=${CLUSTER}"
-                else
-                  add_status 1 "Tempo datasource not resolved for ${CLUSTER}"
-                fi
-  
-                # Pyroscope CPU profiles
-                if [ -n "$PYRO_DS_ID" ]; then
-                  set +e
-                  pyro_resp="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' -u "${GRAFANA_USER}:${GRAFANA_PASS}" -G \
-                    --data-urlencode "query=process_cpu:cpu:nanoseconds:cpu:nanoseconds:sum{cluster=\"$CLUSTER\"}" \
-                    --data-urlencode "from=${START_S}" \
-                    --data-urlencode "until=${END_S}" \
-                    "${GRAFANA_URL}/api/datasources/proxy/uid/${PYRO_DS_UID}/pyroscope/render" )"
-                  pyro_rc=$?
-                  set -e
-                  pyro_body="$(echo "$pyro_resp" | sed '$d')"
-                  pyro_status="$(echo "$pyro_resp" | tail -n1 | sed 's/HTTP_STATUS://')"
-                  if [ $pyro_rc -eq 0 ] && [ "$pyro_status" -ge 400 ]; then pyro_rc=1; fi
-                  if [ $pyro_rc -eq 0 ] && echo "$pyro_body" | grep -q '"values":\[\]'; then pyro_rc=1; fi
-                  if [ $pyro_rc -ne 0 ]; then
-                    echo "DEBUG Pyroscope status=$pyro_status body=$(echo "$pyro_body" | head -c 400)"
-                  fi
-                add_status $pyro_rc "Pyroscope CPU profiles check for cluster=${CLUSTER}"
-              else
-                add_status 1 "Pyroscope datasource not resolved for ${CLUSTER}"
-              fi
-            
-              # dashboard count
-              if DASH_JSON=$(call_api "Grafana Dashboards" "${GRAFANA_URL}/api/search?type=dash-db"); then
-                DASH_COUNT="$(echo "$DASH_JSON" | grep -o '"uid"' | wc -l || echo 0)"
-                STATUS_LINES="$STATUS_LINES\n\n  ✅ Dashboards: ${DASH_COUNT}"
-              else
-                STATUS_LINES="$STATUS_LINES\n\n  ❌ Dashboards: API call failed"
-                ANY_FAIL=1
-              fi
-
-              # alert rules
-              if ALERT_JSON=$(call_api "Grafana Alert Rules" "${GRAFANA_URL}/api/v1/provisioning/alert-rules"); then
-                ALERT_COUNT="$(echo "$ALERT_JSON" | grep -o '"title":' | wc -l | tr -d ' ' || echo 0)"
-                if [ "$ALERT_COUNT" -gt 0 ]; then
-                  STATUS_LINES="$STATUS_LINES\n\n  ✅ Alert rules: ${ALERT_COUNT}"
-                else
-                  STATUS_LINES="$STATUS_LINES\n\n  ❌ Alert rules: 0"
-                  ANY_FAIL=1
-                fi
-              else
-                STATUS_LINES="$STATUS_LINES\n\n  ❌ Alert rules: API call failed"
-                ANY_FAIL=1
-              fi
-
-              # Mimir Recording Rules
-              if [ -n "${MIMIR_DS_UID}" ]; then
-                if MIMIR_REC_JSON=$(call_api "Mimir Recording Rules" "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" 2>/dev/null); then
-                   MIMIR_REC_COUNT="$(echo "$MIMIR_REC_JSON" | grep -o '"type":"recording"' | wc -l | tr -d ' ' || echo 0)"
-                   STATUS_LINES="$STATUS_LINES\n\n  ✅ Mimir Recording Rules: ${MIMIR_REC_COUNT}"
-                else
-                   STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Recording Rules: API call failed"
-                   ANY_FAIL=1
-                fi
-              fi 
-
-              if [ -n "${MIMIR_DS_UID}" ]; then
-                if MIMIR_RULES_JSON=$(call_api "Mimir Alert Rules" "${GRAFANA_URL}/api/datasources/proxy/uid/${MIMIR_DS_UID}/api/v1/rules" 2>/dev/null); then
-                   MIMIR_RULE_COUNT="$(echo "$MIMIR_RULES_JSON" | grep -o '"type":"alerting"' | wc -l | tr -d ' ' || echo 0)"
-                   if [ "$MIMIR_RULE_COUNT" -gt 0 ]; then
-                      STATUS_LINES="$STATUS_LINES\n\n  ✅ Mimir Alert Rules: ${MIMIR_RULE_COUNT}"
-                   else
-                      STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Alert Rules: 0"
-                    ANY_FAIL=1
-                   fi
-                else
-                   STATUS_LINES="$STATUS_LINES\n\n  ❌ Mimir Alert Rules: API call failed"
-                   ANY_FAIL=1
-                fi
-              fi 
-
-              # contact points count
-              if CONTACT_JSON=$(call_api "Grafana Contact Points" "${GRAFANA_URL}/api/v1/provisioning/contact-points"); then
-                CONTACT_COUNT="$(echo "$CONTACT_JSON" | grep -o '"name"' | wc -l || echo 0)"
-                STATUS_LINES="$STATUS_LINES\n\n  ℹ️ Contact Points: ${CONTACT_COUNT}"
-              else
-                STATUS_LINES="$STATUS_LINES\n\n  ❌ Contact Points: API call failed"
-                ANY_FAIL=1
-              fi
-
-              # notification policies
-              if POLICIES=$(call_api "Grafana Policies" "${GRAFANA_URL}/api/v1/provisioning/policies"); then
-                if echo "$POLICIES" | grep -q '"receiver"'; then
-                  POL_COUNT="$(echo "$POLICIES" | grep -o '"receiver"' | wc -l || echo 0)"
-                  STATUS_LINES="$STATUS_LINES\n\n  ✅ Grafana Notification policies: ${POL_COUNT}"
-                else
-                  STATUS_LINES="$STATUS_LINES\n\n  ❌ Grafana Notification policies missing"
-                  ANY_FAIL=1
-                fi
-              else
-                STATUS_LINES="$STATUS_LINES\n\n  ❌ Grafana Notification policies: API call failed"
-                ANY_FAIL=1
-              fi
-
-              # Alertmanager policies
-              if [ -n "${AM_DS_UID}" ]; then
-                # Get the Alertmanager configuration from Grafana for this specific datasource
-                if AM_CONFIG=$(call_api "Alertmanager Config" "${GRAFANA_URL}/api/alertmanager/${AM_DS_UID}/config/api/v1/alerts"); then
-                  if echo "$AM_CONFIG" | grep -q '"receivers"' || echo "$AM_CONFIG" | grep -q 'receivers:'; then
-                    AM_POL_COUNT="$(echo "$AM_CONFIG" | grep -o '"receiver"' | wc -l || echo 0)"
-                    STATUS_LINES="$STATUS_LINES\n\n  ✅ Alertmanager Notification policies: ${AM_POL_COUNT}"
-                  else
-                    STATUS_LINES="$STATUS_LINES\n\n  ❌ Alertmanager Notification policies missing"
-                    ANY_FAIL=1
-                  fi
-                else
-                  STATUS_LINES="$STATUS_LINES\n\n  ❌ Alertmanager Notification policies: API call failed"
-                  ANY_FAIL=1
-                fi
-              fi
-              
-              ##############################################
-              # 10. Slack Notification
-              ##############################################
-              echo -e "\n=== Validation Summary ==="
-              echo -e "$STATUS_LINES"
-              echo "=========================="
-              
-              # Context header
-              CONTEXT_MSG="*Customer:* ${CUSTOMER}\n*Environment:* ${ENVIRONMENT}\n*Cluster:* ${CLUSTER_NAME}"
-
-              # Slack notification
-              if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
-                payload="$(printf '{"text":"*OTEL Validation Summary*\n\n%s\n\n*Results:*\n%s"}' "$(echo -e "$CONTEXT_MSG" | sed 's/"/\\"/g')" "$(echo -e "$STATUS_LINES" | sed 's/"/\\"/g')" )"
-                curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" "$SLACK_WEBHOOK_URL" || true
-              fi
-
-              if [ "$ANY_FAIL" -eq 1 ]; then
-                echo "❌ Validation FAILED."
-                exit 1
-              else
-                echo "✅ Validation SUCCESS."
-                exit 0
-              fi
+          command: ["/bin/sh", "/scripts/validate.sh"]
           env:
-          - name: SLACK_WEBHOOK_URL
-            value: {{ .Values.global.slackWebhookUrl }}
-          - name: CLUSTER_NAME
-            value: {{ .Values.global.clusterName }}
-          - name: LOKI_DS_UID
-            value: "duplo-logging"
-          - name: MIMIR_DS_UID
-            value: "duplo-metrics"
-          - name: TEMPO_DS_UID
-            value: "duplo-tracing"
-          - name: PYRO_DS_UID
-            value: "duplo-profiling"
-          - name: AM_DS_UID
-            value: "duplo-alertmanager"
-          - name: GRAFANA_USER
-            valueFrom:
-              secretKeyRef:
-                name: grafanaui
-                key: username
-          - name: GRAFANA_PASS
-            valueFrom:
-              secretKeyRef:
-                name: grafanaui
-                key: password
-          # Service endpoints — set these to your actual service names if different
-          - name: GRAFANA_URL
-            value: "http://grafana-ui:3000"
-          - name: DUPLO_AUTOMATION
-            value: "http://duplo-automation:5000"
-          - name: STRICT_FAIL
-            value: "true"
-          - name: CUSTOMER
-            value: "{{ .Values.global.customerName }}"
-          - name: ENVIRONMENT
-            value: "{{ .Values.global.environment }}"
-          - name: CLUSTER_NAME
-            value: "{{ .Values.global.clusterName }}"
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: CLUSTER_NAME
+              value: "{{ .Values.global.clusterName }}"
+            - name: CUSTOMER
+              value: "{{ .Values.global.customerName }}"
+            - name: ENVIRONMENT
+              value: "{{ .Values.global.environment }}"
+            - name: SLACK_WEBHOOK_URL
+              value: "{{ .Values.global.slackWebhookUrl }}"
+            - name: GRAFANA_URL
+              value: "http://grafana-ui:3000"
+            - name: GRAFANA_PROXY_URL
+              value: "{{ .Values.global.grafanaProxyUrl }}"
+            - name: HELM_REVISION
+              value: "{{ .Release.Revision }}"
+            - name: AOS_RELEASE
+              value: "{{ .Values.global.release }}"
+            - name: LOKI_DS_UID
+              value: "duplo-logging"
+            - name: MIMIR_DS_UID
+              value: "duplo-metrics"
+            - name: TEMPO_DS_UID
+              value: "duplo-tracing"
+            - name: PYRO_DS_UID
+              value: "duplo-profiling"
+            - name: AM_DS_UID
+              value: "duplo-alertmanager"
+            - name: GRAFANA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GRAFANA_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
+            - name: LOKI_URL
+              value: "{{ .Values.otelValidationJob.lokiUrl }}"
+            - name: LOKI_TENANT_ID
+              value: "{{ .Values.otelValidationJob.lokiTenantId | default "anonymous" }}"
+            - name: MIMIR_URL
+              value: "{{ .Values.otelValidationJob.mimirUrl }}"
+            - name: MIMIR_TENANT_ID
+              value: "{{ .Values.otelValidationJob.mimirTenantId | default "anonymous" }}"
+            - name: TEMPO_URL
+              value: "{{ .Values.otelValidationJob.tempoUrl }}"
+            - name: TEMPO_TENANT_ID
+              value: "{{ .Values.otelValidationJob.tempoTenantId | default "anonymous" }}"
+            - name: AM_URL
+              value: "{{ .Values.otelValidationJob.amUrl }}"
+            - name: AM_TENANT_ID
+              value: "{{ .Values.otelValidationJob.amTenantId | default "anonymous" }}"
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: duplo-otel-validation-script
+            defaultMode: 0755
       serviceAccountName: {{ .Release.Namespace }}-edit-user
       restartPolicy: Never
-{{- if .Values.pdc.nodeSelector }}
+{{- if .Values.otelValidationJob.nodeSelector }}
       nodeSelector:
-{{ toYaml .Values.pdc.nodeSelector | indent 8 }}
+{{ toYaml .Values.otelValidationJob.nodeSelector | indent 8 }}
 {{- end }}
 ---
 {{- end }}

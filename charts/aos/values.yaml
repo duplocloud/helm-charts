@@ -108,7 +108,7 @@ secrets:
 integrationJob:
   enabled: true
   image: "alpine/k8s"
-  imageTag: "1.32.1"
+  imageTag: "1.35.4"
   nodeSelector: 
     allocationtags: duplo-observability
 
@@ -140,7 +140,7 @@ pdc:
       cpu: 1
       memory: 1Gi
   image: "alpine/k8s"
-  imageTag: "1.32.1"
+  imageTag: "1.35.4"
   nodeSelector: 
     allocationtags: duplo-observability
 
@@ -154,7 +154,13 @@ tracing:
 otelValidationJob:
   enabled: true
   image: "alpine/k8s"
-  imageTag: "1.32.1"
+  imageTag: "1.35.4"
+  grafanaUrl: "http://grafana-ui:3000"
+  lokiDsUid: "duplo-logging"
+  mimirDsUid: "duplo-metrics"
+  tempoDsUid: "duplo-tracing"
+  pyroDsUid: "duplo-profiling"
+  amDsUid: "duplo-alertmanager"
   nodeSelector:
     allocationtags: duplo-observability
   

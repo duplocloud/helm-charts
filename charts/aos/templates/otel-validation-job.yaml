@@ -28,7 +28,7 @@ spec:
             - name: SLACK_WEBHOOK_URL
               value: "{{ .Values.global.slackWebhookUrl }}"
             - name: GRAFANA_URL
-              value: "http://grafana-ui:3000"
+              value: "{{ .Values.otelValidationJob.grafanaUrl }}"
             - name: GRAFANA_PROXY_URL
               value: "{{ .Values.global.grafanaProxyUrl }}"
             - name: HELM_REVISION
@@ -36,15 +36,15 @@ spec:
             - name: AOS_RELEASE
               value: "{{ .Values.global.release }}"
             - name: LOKI_DS_UID
-              value: "duplo-logging"
+              value: "{{ .Values.otelValidationJob.lokiDsUid }}"
             - name: MIMIR_DS_UID
-              value: "duplo-metrics"
+              value: "{{ .Values.otelValidationJob.mimirDsUid }}"
             - name: TEMPO_DS_UID
-              value: "duplo-tracing"
+              value: "{{ .Values.otelValidationJob.tempoDsUid }}"
             - name: PYRO_DS_UID
-              value: "duplo-profiling"
+              value: "{{ .Values.otelValidationJob.pyroDsUid }}"
             - name: AM_DS_UID
-              value: "duplo-alertmanager"
+              value: "{{ .Values.otelValidationJob.amDsUid }}"
             - name: GRAFANA_USER
               valueFrom:
                 secretKeyRef:

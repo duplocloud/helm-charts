@@ -32,7 +32,11 @@ grafanaUI:
     size: "10Gi"
   nodeSelector: 
     allocationtags: duplo-observability
-  plugins: "grafana-exploretraces-app,yesoreyeram-infinity-datasource,volkovlabs-form-panel"
+  plugins: "grafana-metricsdrilldown-app@2.0.2,grafana-lokiexplore-app@2.0.3,grafana-exploretraces-app@2.0.2,grafana-pyroscope-app@2.0.4,grafana-llm-app@1.0.8,yesoreyeram-infinity-datasource@3.8.0,volkovlabs-form-panel@6.3.2"
+  extraPlugins: ""
+  persistence:
+    enabled: true
+    storageClass: ""
   smtp:
     enabled: false
     config:
@@ -45,6 +49,7 @@ grafanaUI:
       starttlsPolicy: "MandatoryStartTLS"
   syntheticMonitoring:
     enabled: false
+    plugins: "grafana-synthetic-monitoring-app@1.45.0"
     config:
       gc_instance_id: ""
       gc_loki_host_id: ""
@@ -64,6 +69,9 @@ duploAutomation:
     size: "10Gi"
   nodeSelector: 
     allocationtags: duplo-observability
+  persistence:
+    enabled: true
+    storageClass: ""
 
 # AI Suite settings
 aiSuite:
@@ -78,7 +86,7 @@ grafanaProxy:
   enabled: true
   replicas: 1
   image: "duplocloud/sso-proxy"
-  imageTag: "v2.0.4-otel"
+  imageTag: "v2.0.5-otel"
   resources:
     limits:
       cpu: "50m"
@@ -151,3 +159,6 @@ otelValidationJob:
     allocationtags: duplo-observability
   
 
+# Blackbox Exporter settings
+blackboxexporter:
+  enabled: false

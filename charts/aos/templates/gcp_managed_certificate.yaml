@@ -2,11 +2,11 @@
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
-  name: grafana-proxy-otel
+  name: {{ .Values.global.grafanaProxyUrl | trimPrefix "https://" | splitList "." | first }}
   annotations:
     "helm.sh/hook": pre-install
   namespace: {{ .Values.global.namespace }}
 spec:
   domains:
-    - {{ .Values.global.grafanaProxyUrl }}
+    - {{ .Values.global.grafanaProxyUrl | trimPrefix "https://" }}
 {{- end }}

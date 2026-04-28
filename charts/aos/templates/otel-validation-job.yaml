@@ -1,0 +1,73 @@
+{{- if .Values.otelValidationJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: duplo-otel-validation
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: otel-validation
+          image: "{{ .Values.otelValidationJob.image }}:{{ .Values.otelValidationJob.imageTag }}"
+          command: ["/bin/sh", "/scripts/validate.sh"]
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: CLUSTER_NAME
+              value: "{{ .Values.global.clusterName }}"
+            - name: CUSTOMER
+              value: "{{ .Values.global.customerName }}"
+            - name: ENVIRONMENT
+              value: "{{ .Values.global.environment }}"
+            - name: SLACK_WEBHOOK_URL
+              value: "{{ .Values.global.slackWebhookUrl }}"
+            - name: GRAFANA_URL
+              value: "{{ .Values.otelValidationJob.grafanaUrl }}"
+            - name: GRAFANA_PROXY_URL
+              value: "{{ .Values.global.grafanaProxyUrl }}"
+            - name: HELM_REVISION
+              value: "{{ .Release.Revision }}"
+            - name: AOS_RELEASE
+              value: "{{ .Values.global.release }}"
+            - name: LOKI_DS_UID
+              value: "{{ .Values.otelValidationJob.lokiDsUid }}"
+            - name: MIMIR_DS_UID
+              value: "{{ .Values.otelValidationJob.mimirDsUid }}"
+            - name: TEMPO_DS_UID
+              value: "{{ .Values.otelValidationJob.tempoDsUid }}"
+            - name: PYRO_DS_UID
+              value: "{{ .Values.otelValidationJob.pyroDsUid }}"
+            - name: ALERTMANAGER_DS_UID
+              value: "{{ .Values.otelValidationJob.alertmanagerDsUid }}"
+            - name: GRAFANA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GRAFANA_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: duplo-otel-validation-script
+            defaultMode: 0755
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.otelValidationJob.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.otelValidationJob.nodeSelector | indent 8 }}
+{{- end }}
+---
+{{- end }}

@@ -43,8 +43,8 @@ spec:
               value: "{{ .Values.otelValidationJob.tempoDsUid }}"
             - name: PYRO_DS_UID
               value: "{{ .Values.otelValidationJob.pyroDsUid }}"
-            - name: AM_DS_UID
-              value: "{{ .Values.otelValidationJob.amDsUid }}"
+            - name: ALERTMANAGER_DS_UID
+              value: "{{ .Values.otelValidationJob.alertmanagerDsUid }}"
             - name: GRAFANA_USER
               valueFrom:
                 secretKeyRef:

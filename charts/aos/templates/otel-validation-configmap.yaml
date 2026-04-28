@@ -339,7 +339,7 @@ data:
       '[.. | objects | select(.type=="alerting")] | length' "$MIN_MIMIR_ALERT_RULES"
 
     check_config "Alertmanager Notification policies" \
-      "${GRAFANA_URL}/api/alertmanager/${AM_DS_UID}/config/api/v1/alerts" \
+      "${GRAFANA_URL}/api/alertmanager/${ALERTMANAGER_DS_UID}/config/api/v1/alerts" \
       '.alertmanager_config.receivers | length' "$MIN_AM_POLICIES"
 
     # ── Phase 4: Summary ─────────────────────────────────────────────────────

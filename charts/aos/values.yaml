@@ -160,7 +160,7 @@ otelValidationJob:
   mimirDsUid: "duplo-metrics"
   tempoDsUid: "duplo-tracing"
   pyroDsUid: "duplo-profiling"
-  amDsUid: "duplo-alertmanager"
+  alertmanagerDsUid: "duplo-alertmanager"
   nodeSelector:
     allocationtags: duplo-observability
   

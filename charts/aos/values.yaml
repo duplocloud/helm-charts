@@ -164,7 +164,6 @@ otelValidationJob:
   nodeSelector:
     allocationtags: duplo-observability
   
-
 # Blackbox Exporter settings
 blackboxexporter:
   enabled: false

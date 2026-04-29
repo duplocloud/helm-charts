@@ -167,3 +167,6 @@ otelValidationJob:
 # Blackbox Exporter settings
 blackboxexporter:
   enabled: false
+  serviceMonitor:
+    selfMonitor:
+      enabled: true

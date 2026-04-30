@@ -170,3 +170,21 @@ blackboxexporter:
   serviceMonitor:
     selfMonitor:
       enabled: true
+  fullnameOverride: aos-blackbox-exporter
+  nodeSelector:
+    allocationtags: duplo-observability
+  config:
+    modules:
+      http_2xx:
+        http:
+          follow_redirects: true
+          preferred_ip_protocol: ip4
+          tls_config:
+            insecure_skip_verify: true
+          valid_http_versions:
+            - HTTP/1.0
+            - HTTP/1.1
+            - HTTP/2.0
+            - HTTP/3.0
+        prober: http
+        timeout: 5s

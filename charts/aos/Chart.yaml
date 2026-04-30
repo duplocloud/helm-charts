@@ -5,7 +5,7 @@ type: application
 version: 2.1.21
 appVersion: "2.1.1" 
 dependencies:
-  - name: blackbox-exporter
+  - name: prometheus-blackbox-exporter
     alias: blackboxexporter
     version: "11.9.1"
     repository: https://prometheus-community.github.io/helm-charts

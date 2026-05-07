@@ -40,6 +40,37 @@ spec:
                       key: gpg_passphrase
                 - name: JOB_VERSION
                   value: {{ .Values.observabilityCollector.jobVersion | quote }}
+{{- if .Values.observabilityCollector.sourceCredentials.prometheusPassword }}
+                - name: SOURCE_PROMETHEUS_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: source-prometheus-credentials
+                      key: username
+                - name: SOURCE_PROMETHEUS_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: source-prometheus-credentials
+                      key: password
+{{- end }}
+{{- if .Values.observabilityCollector.sourceCredentials.lokiPassword }}
+                - name: SOURCE_LOKI_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: source-loki-credentials
+                      key: username
+                - name: SOURCE_LOKI_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: source-loki-credentials
+                      key: password
+{{- end }}
+{{- if .Values.observabilityCollector.sourceCredentials.lokiUrl }}
+                - name: SOURCE_LOKI_URL
+                  value: {{ .Values.observabilityCollector.sourceCredentials.lokiUrl | quote }}
+{{- end }}
+{{- with .Values.observabilityCollector.extraEnv }}
+                {{- toYaml . | nindent 16 }}
+{{- end }}
           restartPolicy: OnFailure
 {{- if .Values.observabilityCollector.nodeSelector }}
           nodeSelector:

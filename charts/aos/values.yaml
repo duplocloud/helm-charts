@@ -118,9 +118,17 @@ observabilityCollector:
   schedule: "0 0 * * *"
   image: "duplocloud/duplo-observability"
   imageTag: "stable"
-  jobVersion: "2.1.0" 
-  nodeSelector: 
+  jobVersion: "2.1.0"
+  nodeSelector:
     allocationtags: duplo-observability
+  extraEnv: []
+  # Source credentials for multi-tenant clusters — leave blank for single-tenant
+  sourceCredentials:
+    prometheusUsername: ""
+    prometheusPassword: ""
+    lokiUsername: ""
+    lokiPassword: ""
+    lokiUrl: ""
   
 # Grafana Cloud PDC settings
 pdc:

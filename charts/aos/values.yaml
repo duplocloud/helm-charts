@@ -123,12 +123,22 @@ observabilityCollector:
     allocationtags: duplo-observability
   extraEnv: []
   # Source credentials for multi-tenant clusters — leave blank for single-tenant
+  # Mode 1 (inline): set username + password — Helm creates the secret
+  # Mode 2 (external): set existingSecret — references an existing secret in the cluster
   sourceCredentials:
-    prometheusUsername: ""
-    prometheusPassword: ""
-    lokiUsername: ""
-    lokiPassword: ""
-    lokiUrl: ""
+    prometheus:
+      username: ""
+      password: ""
+      existingSecret: ""
+      usernameKey: "username"
+      passwordKey: "password"
+    loki:
+      username: ""
+      password: ""
+      url: ""
+      existingSecret: ""
+      usernameKey: "username"
+      passwordKey: "password"
   
 # Grafana Cloud PDC settings
 pdc:

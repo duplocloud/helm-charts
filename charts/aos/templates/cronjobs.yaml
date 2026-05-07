@@ -40,33 +40,37 @@ spec:
                       key: gpg_passphrase
                 - name: JOB_VERSION
                   value: {{ .Values.observabilityCollector.jobVersion | quote }}
-{{- if .Values.observabilityCollector.sourceCredentials.prometheusPassword }}
+{{- $promCreds := .Values.observabilityCollector.sourceCredentials.prometheus }}
+{{- $promSecretName := default "source-prometheus-credentials" $promCreds.existingSecret }}
+{{- if or $promCreds.username $promCreds.existingSecret }}
                 - name: SOURCE_PROMETHEUS_USERNAME
                   valueFrom:
                     secretKeyRef:
-                      name: source-prometheus-credentials
-                      key: username
+                      name: {{ $promSecretName }}
+                      key: {{ $promCreds.usernameKey }}
                 - name: SOURCE_PROMETHEUS_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: source-prometheus-credentials
-                      key: password
+                      name: {{ $promSecretName }}
+                      key: {{ $promCreds.passwordKey }}
 {{- end }}
-{{- if .Values.observabilityCollector.sourceCredentials.lokiPassword }}
+{{- $lokiCreds := .Values.observabilityCollector.sourceCredentials.loki }}
+{{- $lokiSecretName := default "source-loki-credentials" $lokiCreds.existingSecret }}
+{{- if or $lokiCreds.username $lokiCreds.existingSecret }}
                 - name: SOURCE_LOKI_USERNAME
                   valueFrom:
                     secretKeyRef:
-                      name: source-loki-credentials
-                      key: username
+                      name: {{ $lokiSecretName }}
+                      key: {{ $lokiCreds.usernameKey }}
                 - name: SOURCE_LOKI_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: source-loki-credentials
-                      key: password
+                      name: {{ $lokiSecretName }}
+                      key: {{ $lokiCreds.passwordKey }}
 {{- end }}
-{{- if .Values.observabilityCollector.sourceCredentials.lokiUrl }}
+{{- if $lokiCreds.url }}
                 - name: SOURCE_LOKI_URL
-                  value: {{ .Values.observabilityCollector.sourceCredentials.lokiUrl | quote }}
+                  value: {{ $lokiCreds.url | quote }}
 {{- end }}
 {{- with .Values.observabilityCollector.extraEnv }}
                 {{- toYaml . | nindent 16 }}

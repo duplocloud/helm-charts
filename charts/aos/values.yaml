@@ -118,7 +118,7 @@ observabilityCollector:
   schedule: "0 0 * * *"
   image: "duplocloud/duplo-observability"
   imageTag: "stable"
-  jobVersion: "2.1.0"
+  jobVersion: "2.2.0"
   nodeSelector:
     allocationtags: duplo-observability
   extraEnv: []

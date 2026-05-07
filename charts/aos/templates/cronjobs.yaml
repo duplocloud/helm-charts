@@ -41,7 +41,7 @@ spec:
                 - name: JOB_VERSION
                   value: {{ .Values.observabilityCollector.jobVersion | quote }}
 {{- $promCreds := .Values.observabilityCollector.sourceCredentials.prometheus }}
-{{- $promSecretName := default "source-prometheus-credentials" $promCreds.existingSecret }}
+{{- $promSecretName := default "observability-collector-prometheus" $promCreds.existingSecret }}
 {{- if or $promCreds.username $promCreds.existingSecret }}
                 - name: SOURCE_PROMETHEUS_USERNAME
                   valueFrom:
@@ -55,7 +55,7 @@ spec:
                       key: {{ $promCreds.passwordKey }}
 {{- end }}
 {{- $lokiCreds := .Values.observabilityCollector.sourceCredentials.loki }}
-{{- $lokiSecretName := default "source-loki-credentials" $lokiCreds.existingSecret }}
+{{- $lokiSecretName := default "observability-collector-loki" $lokiCreds.existingSecret }}
 {{- if or $lokiCreds.username $lokiCreds.existingSecret }}
                 - name: SOURCE_LOKI_USERNAME
                   valueFrom:

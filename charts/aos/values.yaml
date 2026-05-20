@@ -58,6 +58,9 @@ grafanaUI:
       gc_mimir_url: ""
       gc_synthetic_monitoring_url: ""
       gc_token: ""
+  extraEnv:
+    - name: GF_DATABASE_WAL
+      value: "true"
 
 # Duplo Automation settings
 duploAutomation:

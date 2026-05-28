@@ -209,6 +209,8 @@ spec:
               value: "duplo-otel-alerting"
             - name: AOS_AUTOMATION_WEBHOOK
               value: "{{ .Values.global.automationWebhookUrl }}"
+            - name: AOS_LOKI_WEBHOOK
+              value: "{{ .Values.global.automationLokiWebhookUrl }}"
             - name: AOS_DUPLO_PORTAL_NAME
               value: "{{ .Values.global.customerName }}-{{ .Values.global.environment }}"
             - name: AOS_NAMESPACE_FILTER

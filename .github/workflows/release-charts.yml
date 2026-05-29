@@ -41,20 +41,21 @@ jobs:
         run: |
           CHART_VERSION=$(grep '^version:' charts/aos/Chart.yaml | awk '{print $2}')
           PREV_TAG=$(git tag --sort=-version:refname | grep "^aos-" | head -1)
-          echo "## What's Changed" > /tmp/release-notes.md
-          echo "" >> /tmp/release-notes.md
+          echo "## What's Changed" > charts/aos/release-notes.md
+          echo "" >> charts/aos/release-notes.md
           if [ -n "$PREV_TAG" ]; then
             git log --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" \
-              "${PREV_TAG}..HEAD" -- charts/aos/ >> /tmp/release-notes.md
+              "${PREV_TAG}..HEAD" -- charts/aos/ >> charts/aos/release-notes.md
           else
             git log --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" \
-              -- charts/aos/ >> /tmp/release-notes.md
+              -- charts/aos/ >> charts/aos/release-notes.md
           fi
-          echo "" >> /tmp/release-notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...aos-${CHART_VERSION}" >> /tmp/release-notes.md
+          echo "" >> charts/aos/release-notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...aos-${CHART_VERSION}" >> charts/aos/release-notes.md
+          cat charts/aos/release-notes.md
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_RELEASE_NOTES_FILE: /tmp/release-notes.md
+          CR_RELEASE_NOTES_FILE: release-notes.md

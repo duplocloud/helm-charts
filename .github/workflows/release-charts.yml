@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "charts/*/Chart.yaml"
 
 jobs:
   release:
@@ -35,7 +37,24 @@ jobs:
             helm dependency update "$chart"
           done
 
+      - name: Generate release notes
+        run: |
+          CHART_VERSION=$(grep '^version:' charts/aos/Chart.yaml | awk '{print $2}')
+          PREV_TAG=$(git tag --sort=-version:refname | grep "^aos-" | head -1)
+          echo "## What's Changed" > /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          if [ -n "$PREV_TAG" ]; then
+            git log --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" \
+              "${PREV_TAG}..HEAD" -- charts/aos/ >> /tmp/release-notes.md
+          else
+            git log --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" \
+              -- charts/aos/ >> /tmp/release-notes.md
+          fi
+          echo "" >> /tmp/release-notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...aos-${CHART_VERSION}" >> /tmp/release-notes.md
+
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_RELEASE_NOTES_FILE: /tmp/release-notes.md

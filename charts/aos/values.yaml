@@ -20,7 +20,7 @@ grafanaUI:
   enabled: true
   replicas: 1
   image: "duplocloud/otel-dashboards"
-  imageTag: ""
+  imageTag: "12.4.2-v1"
   resources:
     limits:
       cpu: "100m"
@@ -64,7 +64,7 @@ duploAutomation:
   enabled: true
   replicas: 1
   image: "duplocloud/duplo-automation"
-  imageTag: ""
+  imageTag: "3.1.0"
   volume:
     size: "10Gi"
   nodeSelector: 
@@ -184,7 +184,7 @@ otelValidationJob:
   
 # Blackbox Exporter settings
 blackboxexporter:
-  enabled: false
+  enabled: true
   serviceMonitor:
     selfMonitor:
       enabled: true

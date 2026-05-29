@@ -12,6 +12,7 @@ global:
   slackWebhookUrl: ""
   oncallWebhookUrl: ""
   automationWebhookUrl: "http://duplo-automation:5000/alertmanager/webhook"
+  automationLokiWebhookUrl: "http://duplo-automation:5000/alertmanager/loki-webhook"
   cloud: ""
   duploReleaseBranch: "main"
   

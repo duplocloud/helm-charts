@@ -21,13 +21,13 @@ grafanaUI:
   enabled: true
   replicas: 1
   image: "duplocloud/otel-dashboards"
-  imageTag: "12.4.2-v1"
+  imageTag: "13.0.2-v1"
   resources:
     limits:
-      cpu: "100m"
-      memory: "512Mi"
+      cpu: "300m"
+      memory: "1Gi"
     requests:
-      cpu: "100m"
+      cpu: "300m"
       memory: "512Mi"
   volume:
     size: "10Gi"

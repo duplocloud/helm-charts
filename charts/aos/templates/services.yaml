@@ -1,4 +1,4 @@
-{{- if .Values.grafanaUI.enabled }}
+{{- if and .Values.grafanaUI.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,7 +16,7 @@ spec:
       protocol: TCP
 ---
 {{- end }}
-{{- if .Values.duploAutomation.enabled }}
+{{- if and .Values.duploAutomation.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,7 +34,7 @@ spec:
       protocol: TCP
 ---
 {{- end }}
-{{- if .Values.grafanaProxy.enabled }}
+{{- if and .Values.grafanaProxy.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: v1
 kind: Service
 metadata:

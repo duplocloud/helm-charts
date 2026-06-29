@@ -1,4 +1,4 @@
-{{- if .Values.grafanaUI.syntheticMonitoring.enabled }}
+{{- if and .Values.grafanaUI.syntheticMonitoring.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

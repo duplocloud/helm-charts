@@ -1,4 +1,4 @@
-{{- if .Values.otelValidationJob.enabled }}
+{{- if and .Values.otelValidationJob.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

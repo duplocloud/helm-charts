@@ -1,4 +1,4 @@
-{{- if .Values.pdc.enabled }}
+{{- if and .Values.pdc.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -53,18 +53,16 @@ spec:
               fi
           env:
             - name: aos_mimir_url
-              value: {{ .Values.pdc.config.aos_mimir_url }}
+              value: {{ .Values.pdc.config.aos_mimir_url | quote }}
             - name: pdc_uid
-              value: {{ .Values.pdc.config.pdc_uid }}
+              value: {{ .Values.pdc.config.pdc_uid | quote }}
             - name: api_key
-              value: {{ .Values.pdc.config.api_key }}
+              value: {{ .Values.pdc.config.api_key | quote }}
             - name: gc_url
-              value: {{ .Values.pdc.config.gc_url }}
-      serviceAccountName: {{ .Release.Namespace }}-edit-user
+              value: {{ .Values.pdc.config.gc_url | quote }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.pdc.serviceAccountName "namespace" .Release.Namespace) }}
       restartPolicy: Never
-{{- if .Values.pdc.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.pdc.nodeSelector | indent 8 }}
-{{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.pdc.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.pdc.tolerations) | nindent 6 }}
 ---
 {{- end }} 

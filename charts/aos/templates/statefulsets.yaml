@@ -1,4 +1,4 @@
-{{- if .Values.grafanaUI.enabled }}
+{{- if and .Values.grafanaUI.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -31,7 +31,8 @@ spec:
         k8s_grafana_com_metrics_path: "/metrics"
         k8s_grafana_com_metrics_portNumber: "3000"
     spec:
-      {{ if .Values.grafanaUI.syntheticMonitoring.enabled }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.grafanaUI.serviceAccountName "namespace" .Release.Namespace) }}
+      {{- if .Values.grafanaUI.syntheticMonitoring.enabled }}
       volumes:
         - name: synthetic-monitoring-datasource
           configMap:
@@ -39,7 +40,7 @@ spec:
         - name: synthetic-monitoring-plugin
           configMap:
             name: grafana-provisioning-synthetic-monitoring
-      {{ end }}
+      {{- end }}
       containers:
         - name: grafana-ui
           image: "{{ .Values.grafanaUI.image }}:{{ .Values.grafanaUI.imageTag | default .Values.global.release }}"
@@ -107,10 +108,8 @@ spec:
                   matchLabels:
                     app: grafana-ui
                 topologyKey: kubernetes.io/hostname
-{{- if .Values.grafanaUI.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.grafanaUI.nodeSelector | indent 8 }}
-{{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.grafanaUI.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.grafanaUI.tolerations) | nindent 6 }}
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -125,7 +124,7 @@ spec:
         {{- end }}
 ---
 {{- end }}
-{{- if .Values.duploAutomation.enabled }}
+{{- if and .Values.duploAutomation.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -153,6 +152,7 @@ spec:
       labels:
         app: duplo-automation
     spec:
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.duploAutomation.serviceAccountName "namespace" .Release.Namespace) }}
       containers:
         - name: duplo-automation
           image: "{{ .Values.duploAutomation.image }}:{{ .Values.duploAutomation.imageTag | default .Values.global.release }}"
@@ -262,10 +262,8 @@ spec:
                   matchLabels:
                     app: duplo-automation
                 topologyKey: kubernetes.io/hostname
-{{- if .Values.duploAutomation.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.duploAutomation.nodeSelector | indent 8 }}
-{{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.duploAutomation.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.duploAutomation.tolerations) | nindent 6 }}
   volumeClaimTemplates:
     - metadata:
         name: data

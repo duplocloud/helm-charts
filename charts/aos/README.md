@@ -7,7 +7,7 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | Key                          | Description                                  | Default Value                                       |
 |------------------------------|----------------------------------------------|-----------------------------------------------------|
 | `global.clusterName`         | Name of the Kubernetes cluster               | `duploinfra-{{infraName}}`                          |
-| `global.duploAuthUrl`        | URL for Duplo authentication                 | `""`                                                |
+| `global.duploAuthUrl`        | Local DuploCloud portal URL where this stack is deployed | `""` |
 | `global.AOSRegion`           | AWS region for the deployment                | `""`                                                |
 | `global.customerName`        | Customer name                                | `""`                                                |
 | `global.environment`         | Deployment environment (e.g., prod, nonprod) | `""`                                                |
@@ -20,6 +20,11 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `global.automationWebhookUrl`| Automation webhook URL                       | `http://duplo-automation:5000/alertmanager/webhook` |
 | `global.cloud`               | Cloud provider (e.g., aws, gcp)              | `""`                                                |
 | `global.duploReleaseBranch`  | Duplo release branch                         | `main`                                              |
+| `global.stackType`           | Stack type (`main` or `collector`); setting `collector` automatically disables Grafana UI, proxy, jobs, PDC, and all UI-related resources | `main` |
+| `global.centralDuploUrl`     | Main stack portal URL — for collector deployments this is the central portal hosting Grafana; sent as a label in release telemetry alongside `duploAuthUrl` (local portal) and `grafanaProxyUrl` | `""` |
+| `global.nodeSelector`        | Fallback node selector applied to all pods; overridden per-component by setting `<component>.nodeSelector` | `{}` |
+| `global.tolerations`         | Fallback tolerations applied to all pods; overridden per-component by setting `<component>.tolerations` | `[]` |
+| `global.serviceAccountName`  | Fallback service account for all pods; overridden per-component; defaults to `<namespace>-edit-user` when empty | `""` |
 
 
 ## Grafana UI Configuration
@@ -34,7 +39,9 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `grafanaUI.volume.size`                                 | Persistent volume size                                                                           | `10Gi`                                |
 | `grafanaUI.persistence.enabled`                         | Enable persistent storage                                                                        | `true`                                |
 | `grafanaUI.persistence.storageClass`                    | Storage class for persistent volume                                                              | `""`                                  |
-| `grafanaUI.nodeSelector`                                | Node selector for pods                                                                           | `allocationtags: duplo-observability` |
+| `grafanaUI.nodeSelector`                                | Node selector for pods (overrides `global.nodeSelector`)                                         | `allocationtags: duplo-observability` |
+| `grafanaUI.tolerations`                                 | Tolerations for pods (overrides `global.tolerations`)                                            | `[]`                                  |
+| `grafanaUI.serviceAccountName`                          | Service account (overrides `global.serviceAccountName`)                                          | `""`                                  |
 | `grafanaUI.extraEnv`                                    | Additional environment variables (YAML list)                                                     | `[]`                                  |
 | `grafanaUI.plugins`                                     | Plugins installed via `GF_PLUGINS_PREINSTALL_SYNC` at startup (Grafana 12.x+). Format: `plugin-id@version`. | See `values.yaml`          |
 | `grafanaUI.extraPlugins`                                | Additional plugins to install alongside the default list                                         | `""`                                  |
@@ -68,8 +75,10 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `duploAutomation.volume.size`    | Persistent volume size                                   | `10Gi`                                |
 | `duploAutomation.persistence.enabled` | Enable persistent storage                           | `true`                                |
 | `duploAutomation.persistence.storageClass` | Storage class for persistent volume            | `""`                                  |
-| `duploAutomation.nodeSelector`   | Node selector for pods                                   | `allocationtags: duplo-observability` |
-| `duploAutomation.extraEnv`       | Additional environment variables (YAML list)             | `[]`                                  |
+| `duploAutomation.nodeSelector`          | Node selector for pods (overrides `global.nodeSelector`)    | `allocationtags: duplo-observability` |
+| `duploAutomation.tolerations`          | Tolerations for pods (overrides `global.tolerations`)       | `[]`                                  |
+| `duploAutomation.serviceAccountName`   | Service account (overrides `global.serviceAccountName`)     | `""`                                  |
+| `duploAutomation.extraEnv`             | Additional environment variables (YAML list)                | `[]`                                  |
 
 
 ## Grafana Proxy Configuration
@@ -81,7 +90,9 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `grafanaProxy.image`         | Docker image                         | `duplocloud/sso-proxy`                |
 | `grafanaProxy.imageTag`      | Image tag                            | `v2.0.5-otel`                         |
 | `grafanaProxy.resources`     | Resource requests and limits         | CPU: `50m`, Memory: `128Mi`           |
-| `grafanaProxy.nodeSelector`  | Node selector for pods               | `allocationtags: duplo-observability` |
+| `grafanaProxy.nodeSelector`         | Node selector for pods (overrides `global.nodeSelector`)    | `allocationtags: duplo-observability` |
+| `grafanaProxy.tolerations`         | Tolerations for pods (overrides `global.tolerations`)       | `[]`                                  |
+| `grafanaProxy.serviceAccountName`  | Service account (overrides `global.serviceAccountName`)     | `""`                                  |
 
 
 ## Grafana Cloud PDC Configuration
@@ -101,7 +112,9 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `pdc.resources.requests.memory` | Memory request                                   | `1Gi`                                       |
 | `pdc.image`                     | Docker image                                     | `alpine/k8s`                                |
 | `pdc.imageTag`                  | Image tag                                        | `1.35.4`                                    |
-| `pdc.nodeSelector`              | Node selector for pods                           | `allocationtags: duplo-observability`       |
+| `pdc.nodeSelector`              | Node selector for pods (overrides `global.nodeSelector`)    | `allocationtags: duplo-observability`       |
+| `pdc.tolerations`               | Tolerations for pods (overrides `global.tolerations`)       | `[]`                                        |
+| `pdc.serviceAccountName`        | Service account (overrides `global.serviceAccountName`)     | `""`                                        |
 
 
 ## AI Suite Configuration
@@ -131,19 +144,62 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `integrationJob.enabled`   | Enable or disable the integration job | `true`                               |
 | `integrationJob.image`     | Docker image                         | `alpine/k8s`                          |
 | `integrationJob.imageTag`  | Image tag                            | `1.35.4`                              |
-| `integrationJob.nodeSelector` | Node selector for the job pod     | `allocationtags: duplo-observability` |
+| `integrationJob.nodeSelector`        | Node selector for pods (overrides `global.nodeSelector`)    | `allocationtags: duplo-observability` |
+| `integrationJob.tolerations`        | Tolerations for pods (overrides `global.tolerations`)       | `[]`                                  |
+| `integrationJob.serviceAccountName` | Service account (overrides `global.serviceAccountName`)     | `""`                                  |
 
 
 ## Observability Collector Configuration
 
 | Key                                 | Description                          | Default Value                         |
 |-------------------------------------|--------------------------------------|---------------------------------------|
-| `observabilityCollector.enabled`    | Enable or disable the cron job       | `true`                                |
-| `observabilityCollector.schedule`   | Cron schedule                        | `0 0 * * *`                           |
-| `observabilityCollector.image`      | Docker image                         | `duplocloud/duplo-observability`      |
-| `observabilityCollector.imageTag`   | Image tag                            | `stable`                              |
-| `observabilityCollector.jobVersion` | Job version                          | `2.1.0`                               |
-| `observabilityCollector.nodeSelector` | Node selector for pods             | `allocationtags: duplo-observability` |
+| `observabilityCollector.enabled`              | Enable or disable the cron job                                   | `true`                                |
+| `observabilityCollector.schedule`             | Cron schedule                                                    | `0 0 * * *`                           |
+| `observabilityCollector.image`                | Docker image                                                     | `duplocloud/duplo-observability`      |
+| `observabilityCollector.imageTag`             | Image tag                                                        | `stable`                              |
+| `observabilityCollector.jobVersion`           | Observability script version (sets `JOB_VERSION` env var)        | `"2.2.0"`                             |
+| `observabilityCollector.nodeSelector`         | Node selector for pods (overrides `global.nodeSelector`)         | `allocationtags: duplo-observability` |
+| `observabilityCollector.tolerations`          | Tolerations for pods (overrides `global.tolerations`)            | `[]`                                  |
+| `observabilityCollector.serviceAccountName`   | Service account (overrides `global.serviceAccountName`)          | `""`                                  |
+
+
+## Pod Scheduling — nodeSelector / tolerations / serviceAccountName
+
+All three fields follow a **global → per-component override** pattern:
+
+- Set `global.nodeSelector`, `global.tolerations`, or `global.serviceAccountName` as the default for all pods.
+- Override for a specific component by setting `<component>.nodeSelector`, `<component>.tolerations`, or `<component>.serviceAccountName`.
+- When both are empty, `serviceAccountName` defaults to `<namespace>-edit-user` (the DuploCloud standard SA).
+
+Every component section (`grafanaUI`, `duploAutomation`, `grafanaProxy`, `pdc`, `integrationJob`, `observabilityCollector`, `otelValidationJob`) accepts these three keys.
+
+### Example: Brownfield nodes with taints
+
+```yaml
+# All pods land on observability-tagged nodes by default and tolerate the taint.
+global:
+  nodeSelector:
+    allocationtags: duplo-observability
+  tolerations:
+    - key: "duplo-observability"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"
+  serviceAccountName: ""           # falls back to <namespace>-edit-user
+
+# Override only the collector — it runs on a different node pool.
+observabilityCollector:
+  nodeSelector:
+    allocationtags: duplo-collector
+  tolerations:
+    - key: "duplo-collector"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"
+  serviceAccountName: "collector-sa"   # explicit SA for this component only
+```
+
+> **Resolution order:** per-component value → `global` value → `<namespace>-edit-user` (serviceAccountName only).
 
 
 ## OTEL Validation Job
@@ -163,7 +219,9 @@ The `otelValidationJob` is a Helm post-install/post-upgrade hook that validates 
 | `otelValidationJob.tempoDsUid`         | Grafana datasource UID for Tempo           | `duplo-tracing`                       |
 | `otelValidationJob.pyroDsUid`          | Grafana datasource UID for Pyroscope       | `duplo-profiling`                     |
 | `otelValidationJob.alertmanagerDsUid`  | Grafana datasource UID for Alertmanager    | `duplo-alertmanager`                  |
-| `otelValidationJob.nodeSelector`       | Node selector for the job pod              | `allocationtags: duplo-observability` |
+| `otelValidationJob.nodeSelector`       | Node selector for pods (overrides `global.nodeSelector`)    | `allocationtags: duplo-observability` |
+| `otelValidationJob.tolerations`        | Tolerations for pods (overrides `global.tolerations`)       | `[]`                                  |
+| `otelValidationJob.serviceAccountName` | Service account (overrides `global.serviceAccountName`)     | `""`                                  |
 
 ### What It Validates
 

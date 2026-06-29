@@ -1,4 +1,4 @@
-{{- if .Values.otelValidationJob.enabled }}
+{{- if and .Values.otelValidationJob.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -63,11 +63,9 @@ spec:
           configMap:
             name: duplo-otel-validation-script
             defaultMode: 0755
-      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.otelValidationJob.serviceAccountName "namespace" .Release.Namespace) }}
       restartPolicy: Never
-{{- if .Values.otelValidationJob.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.otelValidationJob.nodeSelector | indent 8 }}
-{{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.otelValidationJob.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.otelValidationJob.tolerations) | nindent 6 }}
 ---
 {{- end }}

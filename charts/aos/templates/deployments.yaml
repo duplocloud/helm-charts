@@ -1,4 +1,4 @@
-{{- if .Values.grafanaProxy.enabled }}
+{{- if and .Values.grafanaProxy.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +19,7 @@ spec:
       labels:
         app: grafana-proxy
     spec:
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.grafanaProxy.serviceAccountName "namespace" .Release.Namespace) }}
       containers:
         - name: grafana-proxy
           image: "{{ .Values.grafanaProxy.image }}:{{ .Values.grafanaProxy.imageTag }}"
@@ -55,14 +56,12 @@ spec:
             failureThreshold: 5
           resources:
 {{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
-{{- if .Values.grafanaProxy.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.grafanaProxy.nodeSelector | indent 8 }}
-{{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.grafanaProxy.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.grafanaProxy.tolerations) | nindent 6 }}
 ---
 {{- end }}
 
-{{- if .Values.pdc.enabled }}
+{{- if and .Values.pdc.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -86,6 +85,7 @@ spec:
       labels:
         name: grafana-pdc-agent
     spec:
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.pdc.serviceAccountName "namespace" .Release.Namespace) }}
       containers:
       - name: grafana-pdc-agent
         env:
@@ -126,9 +126,7 @@ spec:
         runAsUser: 30000
         runAsGroup: 30000
         fsGroup: 30000
-      {{- if .Values.pdc.nodeSelector }}
-      nodeSelector:
-      {{ toYaml .Values.pdc.nodeSelector | indent 8 }}
-      {{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.pdc.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.pdc.tolerations) | nindent 6 }}
 ---
 {{- end }}

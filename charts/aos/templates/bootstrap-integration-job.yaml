@@ -1,4 +1,4 @@
-{{- if .Values.integrationJob.enabled }}
+{{- if and .Values.integrationJob.enabled (ne (.Values.global.stackType | default "main") "collector") }}
 # Bootstrap job
 apiVersion: batch/v1
 kind: Job
@@ -36,10 +36,8 @@ spec:
               value: "duplo-automation"
             - name: DUPLO_AUTOMATION_ENDPOINT
               value: "http://duplo-automation:5000"
-      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.integrationJob.serviceAccountName "namespace" .Release.Namespace) }}
       restartPolicy: Never
-{{- if .Values.integrationJob.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.integrationJob.nodeSelector | indent 8 }}
-{{- end }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.integrationJob.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.integrationJob.tolerations) | nindent 6 }}
 {{- end }}

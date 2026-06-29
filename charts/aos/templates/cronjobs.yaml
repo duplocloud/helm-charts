@@ -40,6 +40,8 @@ spec:
                       key: gpg_passphrase
                 - name: JOB_VERSION
                   value: {{ .Values.observabilityCollector.jobVersion | quote }}
+                - name: SCRIBE_VERSION
+                  value: {{ .Values.global.release | quote }}
 {{- $promCreds := .Values.observabilityCollector.sourceCredentials.prometheus }}
 {{- $promSecretName := default "observability-collector-prometheus" $promCreds.existingSecret }}
 {{- if or $promCreds.username $promCreds.existingSecret }}
@@ -75,9 +77,14 @@ spec:
 {{- with .Values.observabilityCollector.extraEnv }}
                 {{- toYaml . | nindent 16 }}
 {{- end }}
+                - name: STACK_TYPE
+                  value: {{ .Values.global.stackType | default "main" | quote }}
+                - name: GRAFANA_URL
+                  value: {{ .Values.global.grafanaProxyUrl | quote }}
+                - name: CENTRAL_DUPLO_URL
+                  value: {{ .Values.global.centralDuploUrl | quote }}
           restartPolicy: OnFailure
-{{- if .Values.observabilityCollector.nodeSelector }}
-          nodeSelector:
-{{ toYaml .Values.observabilityCollector.nodeSelector | indent 12 }}
-{{- end }}
+          serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.observabilityCollector.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.observabilityCollector.nodeSelector) | nindent 10 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.observabilityCollector.tolerations) | nindent 10 }}
 {{- end }}

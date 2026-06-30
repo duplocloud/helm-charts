@@ -65,7 +65,7 @@ duploAutomation:
   enabled: true
   replicas: 1
   image: "duplocloud/duplo-automation"
-  imageTag: "3.1.0"
+  imageTag: "4.0.0"
   volume:
     size: "10Gi"
   nodeSelector: 

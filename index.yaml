@@ -3,6 +3,22 @@ entries:
   aos:
   - apiVersion: v2
     appVersion: 2.1.1
+    created: "2026-06-30T06:34:57.402193727Z"
+    dependencies:
+    - alias: blackboxexporter
+      condition: blackboxexporter.enabled
+      name: prometheus-blackbox-exporter
+      repository: https://prometheus-community.github.io/helm-charts
+      version: 11.9.1
+    description: Helm chart for Duplo OpenTelemetry stack
+    digest: c616559f23ba8360ba6a76afdc72461772e27b0f00345d4a2674c9f0675d23e0
+    name: aos
+    type: application
+    urls:
+    - https://github.com/duplocloud/helm-charts/releases/download/aos-2.2.2/aos-2.2.2.tgz
+    version: 2.2.2
+  - apiVersion: v2
+    appVersion: 2.1.1
     created: "2026-06-15T15:55:38.877170321Z"
     dependencies:
     - alias: blackboxexporter
@@ -443,4 +459,4 @@ entries:
     urls:
     - https://github.com/duplocloud/helm-charts/releases/download/aos-0.1.1/aos-0.1.1.tgz
     version: 0.1.1
-generated: "2026-06-15T15:55:38.877474509Z"
+generated: "2026-06-30T06:34:57.402576231Z"

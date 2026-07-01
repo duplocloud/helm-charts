@@ -15,7 +15,8 @@ global:
   automationLokiWebhookUrl: "http://duplo-automation:5000/alertmanager/loki-webhook"
   cloud: ""
   duploReleaseBranch: "main"
-  
+  serviceAccountName: "" # Fallback service account for all pods — overridden by per-component serviceAccountName; defaults to <namespace>-edit-user when empty
+
 # Grafana UI settings
 grafanaUI:
   enabled: true
@@ -122,6 +123,7 @@ observabilityCollector:
   jobVersion: "2.2.0"
   nodeSelector:
     allocationtags: duplo-observability
+  serviceAccountName: "" # Overrides global.serviceAccountName
   extraEnv: []
   # Source credentials for multi-tenant clusters — leave blank for single-tenant
   # Mode 1 (inline): set username + password — Helm creates the secret

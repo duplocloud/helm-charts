@@ -76,7 +76,7 @@ spec:
                 {{- toYaml . | nindent 16 }}
 {{- end }}
           restartPolicy: OnFailure
-          serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.observabilityCollector.serviceAccountName "namespace" .Release.Namespace) }}
+          serviceAccountName: {{ include "aos.serviceAccountName" (dict "root" . "component" "observabilityCollector") }}
 {{- if .Values.observabilityCollector.nodeSelector }}
           nodeSelector:
 {{ toYaml .Values.observabilityCollector.nodeSelector | indent 12 }}

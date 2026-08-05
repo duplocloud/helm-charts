@@ -1,0 +1,104 @@
+{{- if .Values.grafanaMCP.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-mcp-sa-setup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: grafana-mcp-sa-setup
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              GRAFANA_URL="http://grafana-ui:3000"
+              SA_NAME="mcp-server"
+              TOKEN_NAME="mcp-server-token"
+              SECRET_NAME="grafana-mcp-server"
+              NAMESPACE="{{ .Release.Namespace }}"
+
+              # Wait for Grafana to be healthy
+              echo "Waiting for Grafana at ${GRAFANA_URL}..."
+              until curl -sf "${GRAFANA_URL}/api/health" > /dev/null; do
+                echo "Grafana not ready, retrying in 10s..."
+                sleep 10
+              done
+              echo "Grafana is ready."
+
+              # Find existing service account or create it
+              SA_ID=$(curl -sf \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/search?query=${SA_NAME}" \
+                | jq -r '.serviceAccounts[] | select(.name=="'"${SA_NAME}"'") | .id // empty')
+
+              if [ -z "$SA_ID" ]; then
+                echo "Creating service account '${SA_NAME}' with role '{{ .Values.grafanaMCP.serviceAccount.role }}'..."
+                SA_ID=$(curl -sf -X POST \
+                  -H "Content-Type: application/json" \
+                  -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                  "${GRAFANA_URL}/api/serviceaccounts" \
+                  -d "{\"name\":\"${SA_NAME}\",\"role\":\"{{ .Values.grafanaMCP.serviceAccount.role }}\"}" \
+                  | jq -r '.id')
+                echo "Service account created with ID: ${SA_ID}"
+              else
+                echo "Service account '${SA_NAME}' already exists with ID: ${SA_ID}"
+              fi
+
+              # Delete existing token — tokens cannot be retrieved after creation so rotate on every upgrade
+              TOKEN_ID=$(curl -sf \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens" \
+                | jq -r '.[] | select(.name=="'"${TOKEN_NAME}"'") | .id // empty')
+
+              if [ -n "$TOKEN_ID" ]; then
+                echo "Deleting existing token '${TOKEN_NAME}'..."
+                curl -sf -X DELETE \
+                  -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                  "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens/${TOKEN_ID}"
+              fi
+
+              # Create new token
+              echo "Creating token '${TOKEN_NAME}'..."
+              TOKEN=$(curl -sf -X POST \
+                -H "Content-Type: application/json" \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens" \
+                -d "{\"name\":\"${TOKEN_NAME}\"}" \
+                | jq -r '.key')
+
+              # Create or update the K8s secret
+              echo "Writing token to secret '${SECRET_NAME}'..."
+              kubectl create secret generic "${SECRET_NAME}" \
+                --namespace="${NAMESPACE}" \
+                --from-literal=token="${TOKEN}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+
+              echo "✅ Grafana MCP service account setup complete."
+          env:
+            - name: GF_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GF_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.grafanaMCP.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
+{{- end }}
+{{- end }}

@@ -143,6 +143,39 @@ observabilityCollector:
       usernameKey: "username"
       passwordKey: "password"
   
+# Grafana MCP Server settings
+grafanaMCP:
+  enabled: false
+  replicas: 1
+  image: "ghcr.io/grafana/mcp-grafana"
+  imageTag: "v1.0.0"
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+  nodeSelector:
+    allocationtags: duplo-observability
+  grafanaUrl: "http://grafana-ui:3000"
+  serviceAccount:
+    role: "Editor"
+  proxy:
+    enabled: true
+    replicas: 1
+    image: "duplocloud/sso-proxy"
+    imageTag: "v2.0.5-otel"
+    resources:
+      limits:
+        cpu: "50m"
+        memory: "128Mi"
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+    nodeSelector:
+      allocationtags: duplo-observability
+
 # Grafana Cloud PDC settings
 pdc:
   enabled: false

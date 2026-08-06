@@ -158,9 +158,11 @@ spec:
         - name: grafana-mcp-server
           image: "{{ .Values.grafanaMCP.image }}:{{ .Values.grafanaMCP.imageTag }}"
           imagePullPolicy: IfNotPresent
+          args:
+            - -allowed-hosts={{ .Values.grafanaMCP.allowedHosts | default "*" }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 8000
               protocol: TCP
           env:
             - name: GRAFANA_URL
@@ -172,30 +174,25 @@ spec:
                   key: token
                   optional: true
           readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-              scheme: HTTP
+            tcpSocket:
+              port: 8000
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
-            successThreshold: 1
             failureThreshold: 3
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-              scheme: HTTP
+            tcpSocket:
+              port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
-            successThreshold: 1
             failureThreshold: 5
           resources:
 {{- toYaml .Values.grafanaMCP.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
+            runAsUser: 65532
             capabilities:
               drop:
                 - ALL
@@ -229,16 +226,18 @@ spec:
     spec:
       containers:
         - name: grafana-mcp-proxy
-          image: "{{ .Values.grafanaMCP.proxy.image }}:{{ .Values.grafanaMCP.proxy.imageTag }}"
+          image: "{{ .Values.grafanaProxy.image }}:{{ .Values.grafanaProxy.imageTag }}"
           ports:
             - name: proxy
               containerPort: 80
               protocol: TCP
           env:
             - name: DUPLO_AUTH_URL
-              value: {{ .Values.global.duploAuthUrl | quote }}
+              value: {{ required "global.duploAuthUrl is required when grafanaMCP.proxy.enabled=true" .Values.global.duploAuthUrl | quote }}
             - name: BACKEND_URL
               value: "http://grafana-mcp-server:8080"
+            - name: CUSTOM_HEADER_ADD
+              value: "proxy_buffering off;"
           readinessProbe:
             httpGet:
               path: /duplo_auth
@@ -260,7 +259,7 @@ spec:
             successThreshold: 1
             failureThreshold: 5
           resources:
-{{- toYaml .Values.grafanaMCP.proxy.resources | nindent 12 }}
+{{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
 {{- if .Values.grafanaMCP.proxy.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.grafanaMCP.proxy.nodeSelector | indent 8 }}

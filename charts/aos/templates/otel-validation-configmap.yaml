@@ -342,7 +342,30 @@ data:
       "${GRAFANA_URL}/api/alertmanager/${ALERTMANAGER_DS_UID}/config/api/v1/alerts" \
       '.alertmanager_config.receivers | length' "$MIN_AM_POLICIES"
 
-    # ── Phase 4: Summary ─────────────────────────────────────────────────────
+    # ── Phase 4: MCP Server Checks ──────────────────────────────────────────
+    if [ "${MCP_ENABLED:-false}" = "true" ]; then
+      log "--- Phase 4: Grafana MCP Checks ---"
+
+      # Health check
+      if curl -fsS --max-time 5 "${MCP_SERVER_URL}/health" > /dev/null 2>&1; then
+        add_status 0 "MCP server health (${MCP_SERVER_URL}/health)"
+      else
+        add_status 1 "MCP server health (${MCP_SERVER_URL}/health)"
+      fi
+
+      # SSO proxy reachability
+      if [ "${MCP_PROXY_ENABLED:-false}" = "true" ]; then
+        proxy_status="$(curl -s -o /dev/null -w '%{http_code}' \
+          --max-time 5 'http://grafana-mcp-proxy:80/duplo_auth' 2>/dev/null || echo 000)"
+        if [ "$proxy_status" != "000" ]; then
+          add_status 0 "MCP SSO proxy reachable (HTTP ${proxy_status})"
+        else
+          add_status 1 "MCP SSO proxy unreachable"
+        fi
+      fi
+    fi
+
+    # ── Phase 5: Summary ─────────────────────────────────────────────────────
     trap - EXIT   # cancel the failure trap — we'll send explicitly
     rm -f "$NETRC"
 

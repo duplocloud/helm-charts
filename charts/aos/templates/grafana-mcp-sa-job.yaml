@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-weight": "15"
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   backoffLimit: 0
@@ -21,7 +21,7 @@ spec:
             - |
               set -e
 
-              GRAFANA_URL="http://grafana-ui:3000"
+              GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
               SA_NAME="mcp-server"
               TOKEN_NAME="mcp-server-token"
               SECRET_NAME="grafana-mcp-server"
@@ -41,7 +41,7 @@ spec:
                 "${GRAFANA_URL}/api/serviceaccounts/search?query=${SA_NAME}" \
                 | jq -r '.serviceAccounts[] | select(.name=="'"${SA_NAME}"'") | .id // empty')
 
-              if [ -z "$SA_ID" ]; then
+              if [ -z "$SA_ID" ] || [ "$SA_ID" = "null" ]; then
                 echo "Creating service account '${SA_NAME}' with role '{{ .Values.grafanaMCP.serviceAccount.role }}'..."
                 SA_ID=$(curl -sf -X POST \
                   -H "Content-Type: application/json" \
@@ -52,6 +52,11 @@ spec:
                 echo "Service account created with ID: ${SA_ID}"
               else
                 echo "Service account '${SA_NAME}' already exists with ID: ${SA_ID}"
+              fi
+
+              if [ -z "$SA_ID" ] || [ "$SA_ID" = "null" ]; then
+                echo "❌ Failed to get or create service account '${SA_NAME}'"
+                exit 1
               fi
 
               # Delete existing token — tokens cannot be retrieved after creation so rotate on every upgrade
@@ -75,6 +80,11 @@ spec:
                 "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens" \
                 -d "{\"name\":\"${TOKEN_NAME}\"}" \
                 | jq -r '.key')
+
+              if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+                echo "❌ Failed to create token '${TOKEN_NAME}' — received empty or null response"
+                exit 1
+              fi
 
               # Create or update the K8s secret
               echo "Writing token to secret '${SECRET_NAME}'..."

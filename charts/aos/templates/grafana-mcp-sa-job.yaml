@@ -62,6 +62,12 @@ spec:
                 exit 1
               fi
 
+              SA_ROLE="{{ .Values.grafanaMCP.serviceAccount.role }}"
+              case "${SA_ROLE}" in
+                Viewer|Editor|Admin) ;;
+                *) echo "❌ Invalid grafanaMCP.serviceAccount.role '${SA_ROLE}'. Must be one of: Viewer, Editor, Admin."; exit 1 ;;
+              esac
+
               GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
               SA_NAME="mcp-server"
               TOKEN_NAME="mcp-server-token"
@@ -90,12 +96,12 @@ spec:
                 | jq -r '.serviceAccounts[] | select(.name=="'"${SA_NAME}"'") | .id // empty')
 
               if [ -z "$SA_ID" ] || [ "$SA_ID" = "null" ]; then
-                echo "Creating service account '${SA_NAME}' with role '{{ .Values.grafanaMCP.serviceAccount.role }}'..."
+                echo "Creating service account '${SA_NAME}' with role '${SA_ROLE}'..."
                 SA_ID=$(curl -sf -X POST \
                   -H "Content-Type: application/json" \
                   -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
                   "${GRAFANA_URL}/api/serviceaccounts" \
-                  -d "{\"name\":\"${SA_NAME}\",\"role\":\"{{ .Values.grafanaMCP.serviceAccount.role }}\"}" \
+                  -d "{\"name\":\"${SA_NAME}\",\"role\":\"${SA_ROLE}\"}" \
                   | jq -r '.id')
                 echo "Service account created with ID: ${SA_ID}"
               else

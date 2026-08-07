@@ -26,6 +26,13 @@ spec:
                 --from-literal=token="placeholder" 2>/dev/null \
                 && echo "Created placeholder secret grafana-mcp-server" \
                 || echo "Secret grafana-mcp-server already exists, skipping"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
       serviceAccountName: {{ .Release.Namespace }}-edit-user
       restartPolicy: Never
 {{- if .Values.grafanaMCP.nodeSelector }}
@@ -164,6 +171,13 @@ spec:
                   name: grafanaui
                   key: password
                   optional: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
       serviceAccountName: {{ .Release.Namespace }}-edit-user
       restartPolicy: Never
 {{- if .Values.grafanaMCP.nodeSelector }}

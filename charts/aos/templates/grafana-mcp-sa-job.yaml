@@ -56,6 +56,12 @@ spec:
             - |
               set -e
 
+              if [ -z "${GF_ADMIN_USER}" ] || [ -z "${GF_ADMIN_PASS}" ]; then
+                echo "❌ GF_ADMIN_USER or GF_ADMIN_PASS is empty."
+                echo "   Ensure the 'grafanaui' secret exists in namespace {{ .Release.Namespace }} with 'username' and 'password' keys."
+                exit 1
+              fi
+
               GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
               SA_NAME="mcp-server"
               TOKEN_NAME="mcp-server-token"
@@ -145,11 +151,13 @@ spec:
                 secretKeyRef:
                   name: grafanaui
                   key: username
+                  optional: true
             - name: GF_ADMIN_PASS
               valueFrom:
                 secretKeyRef:
                   name: grafanaui
                   key: password
+                  optional: true
       serviceAccountName: {{ .Release.Namespace }}-edit-user
       restartPolicy: Never
 {{- if .Values.grafanaMCP.nodeSelector }}

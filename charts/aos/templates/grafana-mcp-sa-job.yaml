@@ -2,6 +2,40 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
+  name: grafana-mcp-secret-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 30
+  template:
+    spec:
+      containers:
+        - name: grafana-mcp-secret-init
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Create secret with placeholder only on first install — skip if it already exists
+              kubectl create secret generic grafana-mcp-server \
+                --namespace="{{ .Release.Namespace }}" \
+                --from-literal=token="placeholder" 2>/dev/null \
+                && echo "Created placeholder secret grafana-mcp-server" \
+                || echo "Secret grafana-mcp-server already exists, skipping"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.grafanaMCP.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
   name: grafana-mcp-sa-setup
   namespace: {{ .Release.Namespace }}
   annotations:

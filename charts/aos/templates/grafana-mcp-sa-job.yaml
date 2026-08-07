@@ -69,13 +69,18 @@ spec:
                 exit 1
               fi
 
+              GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
+              case "${GRAFANA_URL}" in
+                http://*|https://*) ;;
+                *) echo "❌ grafanaMCP.grafanaUrl '${GRAFANA_URL}' must start with http:// or https://"; exit 1 ;;
+              esac
+
               SA_ROLE="{{ .Values.grafanaMCP.serviceAccount.role }}"
               case "${SA_ROLE}" in
                 Viewer|Editor|Admin) ;;
                 *) echo "❌ Invalid grafanaMCP.serviceAccount.role '${SA_ROLE}'. Must be one of: Viewer, Editor, Admin."; exit 1 ;;
               esac
 
-              GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
               SA_NAME="mcp-server"
               TOKEN_NAME="mcp-server-token"
               SECRET_NAME="grafana-mcp-server"

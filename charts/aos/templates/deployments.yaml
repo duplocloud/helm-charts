@@ -134,6 +134,9 @@ spec:
 {{- end }}
 
 {{- if .Values.grafanaMCP.enabled }}
+{{- if not (or (hasPrefix "http://" .Values.grafanaMCP.grafanaUrl) (hasPrefix "https://" .Values.grafanaMCP.grafanaUrl)) }}
+{{- fail "grafanaMCP.grafanaUrl must start with http:// or https://" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

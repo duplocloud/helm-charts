@@ -10,6 +10,7 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   backoffLimit: 0
+  activeDeadlineSeconds: 400
   template:
     spec:
       containers:
@@ -27,10 +28,17 @@ spec:
               SECRET_NAME="grafana-mcp-server"
               NAMESPACE="{{ .Release.Namespace }}"
 
-              # Wait for Grafana to be healthy
+              # Wait for Grafana to be healthy (max 5 minutes)
               echo "Waiting for Grafana at ${GRAFANA_URL}..."
+              MAX_RETRIES=30
+              RETRY=0
               until curl -sf "${GRAFANA_URL}/api/health" > /dev/null; do
-                echo "Grafana not ready, retrying in 10s..."
+                RETRY=$((RETRY + 1))
+                if [ "$RETRY" -ge "$MAX_RETRIES" ]; then
+                  echo "❌ Grafana did not become ready after $((MAX_RETRIES * 10))s"
+                  exit 1
+                fi
+                echo "Grafana not ready, retrying in 10s... ($RETRY/$MAX_RETRIES)"
                 sleep 10
               done
               echo "Grafana is ready."

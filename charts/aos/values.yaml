@@ -161,7 +161,7 @@ grafanaMCP:
   grafanaUrl: "http://grafana-ui:3000"
   allowedHosts: "*"
   serviceAccount:
-    role: "Editor"
+    role: "Viewer"
   proxy:
     enabled: true
     replicas: 1

@@ -156,6 +156,11 @@ spec:
     metadata:
       labels:
         app: grafana-mcp-server
+      annotations:
+        k8s_grafana_com_scrape: "true"
+        k8s_grafana_com_job: "grafana-mcp-server"
+        k8s_grafana_com_metrics_path: "/metrics"
+        k8s_grafana_com_metrics_portNumber: "8000"
     spec:
       containers:
         - name: grafana-mcp-server
@@ -198,6 +203,15 @@ spec:
             capabilities:
               drop:
                 - ALL
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: grafana-mcp-server
+                topologyKey: kubernetes.io/hostname
 {{- if .Values.grafanaMCP.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
@@ -262,6 +276,22 @@ spec:
             failureThreshold: 5
           resources:
 {{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: grafana-mcp-proxy
+                topologyKey: kubernetes.io/hostname
 {{- if .Values.grafanaMCP.proxy.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.grafanaMCP.proxy.nodeSelector | indent 8 }}

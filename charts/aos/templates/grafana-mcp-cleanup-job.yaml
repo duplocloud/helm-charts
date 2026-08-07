@@ -1,0 +1,75 @@
+{{- if not .Values.grafanaMCP.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-mcp-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 30
+  template:
+    spec:
+      containers:
+        - name: grafana-mcp-cleanup
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl delete secret grafana-mcp-server \
+                --namespace="{{ .Release.Namespace }}" \
+                --ignore-not-found=true \
+                && echo "grafana-mcp-server secret removed (or was already absent)"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.grafanaMCP.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
+{{- end }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-mcp-cleanup-on-delete
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 30
+  template:
+    spec:
+      containers:
+        - name: grafana-mcp-cleanup
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl delete secret grafana-mcp-server \
+                --namespace="{{ .Release.Namespace }}" \
+                --ignore-not-found=true \
+                && echo "grafana-mcp-server secret removed (or was already absent)"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never

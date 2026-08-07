@@ -93,6 +93,9 @@ spec:
                 --from-literal=token="${TOKEN}" \
                 --dry-run=client -o yaml | kubectl apply -f -
 
+              # Restart MCP server so it picks up the new token from the updated secret
+              kubectl rollout restart deployment/grafana-mcp-server -n "${NAMESPACE}"
+
               echo "✅ Grafana MCP service account setup complete."
           env:
             - name: GF_ADMIN_USER

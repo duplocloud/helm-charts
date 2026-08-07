@@ -172,7 +172,6 @@ spec:
                 secretKeyRef:
                   name: grafana-mcp-server
                   key: token
-                  optional: true
           readinessProbe:
             tcpSocket:
               port: 8000

@@ -1,4 +1,4 @@
-{{- if not (and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled) }}
+{{- if not (and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled .Values.grafanaMCP.proxy.auth) }}
 apiVersion: batch/v1
 kind: Job
 metadata:

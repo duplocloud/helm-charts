@@ -217,7 +217,7 @@ spec:
 ---
 {{- end }}
 
-{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled }}
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled .Values.grafanaMCP.proxy.auth }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -247,7 +247,7 @@ spec:
               protocol: TCP
           env:
             - name: DUPLO_AUTH_URL
-              value: {{ required "global.duploAuthUrl is required when grafanaMCP.proxy.enabled=true" .Values.global.duploAuthUrl | quote }}
+              value: {{ required "global.duploAuthUrl is required when grafanaMCP.proxy.auth=true" .Values.global.duploAuthUrl | quote }}
             - name: BACKEND_URL
               value: "http://grafana-mcp-server:8000"
             - name: CUSTOM_HEADER_ADD
@@ -292,7 +292,7 @@ spec:
 ---
 {{- end }}
 
-{{- if and .Values.grafanaMCP.enabled (not .Values.grafanaMCP.proxy.enabled) }}
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled (not .Values.grafanaMCP.proxy.auth) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

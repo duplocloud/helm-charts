@@ -70,7 +70,7 @@ spec:
       protocol: TCP
 ---
 {{- end }}
-{{- if .Values.grafanaMCP.enabled }}
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled }}
 apiVersion: v1
 kind: Service
 metadata:

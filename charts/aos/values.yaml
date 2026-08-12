@@ -145,7 +145,7 @@ observabilityCollector:
   
 # Grafana MCP Server settings
 grafanaMCP:
-  enabled: false
+  enabled: true
   replicas: 1
   image: "grafana/mcp-grafana"
   imageTag: "1.0.0"
@@ -163,7 +163,7 @@ grafanaMCP:
   serviceAccount:
     role: "Viewer"
   proxy:
-    enabled: true   # deploy a proxy pod in front of the MCP server; false = MCP server internal only
+    enabled: false   # deploy a proxy pod in front of the MCP server; false = MCP server internal only
     auth: false     # use DuploCloud sso-proxy (true) or nginx passthrough with no auth (false)
     replicas: 1
     nodeSelector:

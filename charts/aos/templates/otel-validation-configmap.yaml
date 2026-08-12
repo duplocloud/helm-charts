@@ -346,11 +346,19 @@ data:
     if [ "${MCP_ENABLED:-false}" = "true" ]; then
       log "--- Phase 4: Grafana MCP Checks ---"
 
-      # Health check
-      if curl -fsS --max-time 5 "${MCP_SERVER_URL}/health" > /dev/null 2>&1; then
-        add_status 0 "MCP server health (${MCP_SERVER_URL}/health)"
+      # Health check — mcp-grafana has no /health; retry to handle pod startup delay
+      mcp_exit=1
+      for _i in 1 2 3 4 5; do
+        mcp_exit=0
+        curl -s -o /dev/null --max-time 5 "${MCP_SERVER_URL}/sse" 2>/dev/null || mcp_exit=$?
+        [ "${mcp_exit}" -eq 0 ] || [ "${mcp_exit}" -eq 28 ] && break
+        log "MCP server not ready yet (exit=${mcp_exit}), retrying in 10s..."
+        sleep 10
+      done
+      if [ "${mcp_exit}" -eq 0 ] || [ "${mcp_exit}" -eq 28 ]; then
+        add_status 0 "MCP server reachable (${MCP_SERVER_URL}/sse)"
       else
-        add_status 1 "MCP server health (${MCP_SERVER_URL}/health)"
+        add_status 1 "MCP server reachable (${MCP_SERVER_URL}/sse) curl_exit=${mcp_exit}"
       fi
 
       # SSO proxy reachability

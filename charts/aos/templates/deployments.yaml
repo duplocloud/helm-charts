@@ -177,6 +177,7 @@ spec:
                 secretKeyRef:
                   name: grafana-mcp-server
                   key: token
+                  optional: true
           readinessProbe:
             tcpSocket:
               port: 8000
@@ -284,6 +285,95 @@ spec:
                   matchLabels:
                     app: grafana-mcp-proxy
                 topologyKey: kubernetes.io/hostname
+{{- if .Values.grafanaMCP.proxy.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.proxy.nodeSelector | indent 8 }}
+{{- end }}
+---
+{{- end }}
+
+{{- if and .Values.grafanaMCP.enabled (not .Values.grafanaMCP.proxy.enabled) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mcp-passthrough-config
+  namespace: {{ $.Release.Namespace }}
+data:
+  default.conf: |
+    server {
+        listen 80;
+        location /duplo_auth {
+            return 200 "OK";
+            add_header Content-Type text/plain;
+        }
+        location / {
+            proxy_pass http://grafana-mcp-server:8000;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_read_timeout 3600s;
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mcp-proxy
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-mcp-proxy
+  template:
+    metadata:
+      labels:
+        app: grafana-mcp-proxy
+    spec:
+      containers:
+        - name: grafana-mcp-proxy
+          image: "nginx:alpine"
+          ports:
+            - name: proxy
+              containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /duplo_auth
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /duplo_auth
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: "20m"
+              memory: "32Mi"
+            limits:
+              cpu: "50m"
+              memory: "64Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: grafana-mcp-passthrough-config
 {{- if .Values.grafanaMCP.proxy.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.grafanaMCP.proxy.nodeSelector | indent 8 }}

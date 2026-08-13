@@ -79,7 +79,7 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `grafanaProxy.enabled`       | Enable or disable Grafana Proxy      | `true`                                |
 | `grafanaProxy.replicas`      | Number of replicas                   | `1`                                   |
 | `grafanaProxy.image`         | Docker image                         | `duplocloud/sso-proxy`                |
-| `grafanaProxy.imageTag`      | Image tag                            | `v2.0.5-otel`                         |
+| `grafanaProxy.imageTag`      | Image tag                            | `v2.0.6-otel`                         |
 | `grafanaProxy.resources`     | Resource requests and limits         | CPU: `50m`, Memory: `128Mi`           |
 | `grafanaProxy.nodeSelector`  | Node selector for pods               | `allocationtags: duplo-observability` |
 

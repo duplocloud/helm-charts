@@ -163,8 +163,7 @@ grafanaMCP:
   serviceAccount:
     role: "Viewer"
   proxy:
-    enabled: false   # deploy a proxy pod in front of the MCP server; false = MCP server internal only
-    auth: false     # use DuploCloud sso-proxy (true) or nginx passthrough with no auth (false)
+    enabled: false   # expose MCP via DuploCloud sso-proxy; false = MCP server internal only
     replicas: 1
     nodeSelector:
       allocationtags: duplo-observability

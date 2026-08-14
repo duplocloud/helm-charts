@@ -1,4 +1,4 @@
-{{- if not (and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled .Values.grafanaMCP.proxy.auth) }}
+{{- if not .Values.grafanaMCP.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -10,7 +10,7 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   backoffLimit: 0
-  activeDeadlineSeconds: 30
+  activeDeadlineSeconds: 120
   template:
     spec:
       containers:
@@ -20,10 +20,48 @@ spec:
             - /bin/sh
             - -c
             - |
+              # Delete K8s secret
               kubectl delete secret grafana-mcp-server \
                 --namespace="{{ .Release.Namespace }}" \
                 --ignore-not-found=true \
                 && echo "grafana-mcp-server secret removed (or was already absent)"
+
+              # Delete Grafana service account (also removes all its tokens)
+              SA_NAME="mcp-{{ .Release.Namespace | trimPrefix "duploservices-" }}"
+              GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
+
+              if [ -z "${GF_ADMIN_USER}" ] || [ -z "${GF_ADMIN_PASS}" ]; then
+                echo "⚠️  No Grafana credentials — skipping Grafana SA cleanup"
+                exit 0
+              fi
+
+              SA_ID=$(curl -sf \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/search?query=${SA_NAME}" \
+                | jq -r '.serviceAccounts[] | select(.name=="'"${SA_NAME}"'") | .id // empty')
+
+              if [ -z "$SA_ID" ]; then
+                echo "Grafana SA '${SA_NAME}' not found — nothing to clean up"
+                exit 0
+              fi
+
+              echo "Deleting Grafana SA '${SA_NAME}' (ID: ${SA_ID}) and all its tokens..."
+              curl -sf -X DELETE \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}" \
+                && echo "✅ Grafana SA '${SA_NAME}' deleted" \
+                || echo "⚠️  Failed to delete Grafana SA '${SA_NAME}'"
+          env:
+            - name: GF_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GF_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
           resources:
             requests:
               cpu: "50m"

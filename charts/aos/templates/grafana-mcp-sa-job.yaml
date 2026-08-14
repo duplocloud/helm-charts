@@ -1,4 +1,4 @@
-{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled .Values.grafanaMCP.proxy.auth }}
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -81,8 +81,8 @@ spec:
                 *) echo "❌ Invalid grafanaMCP.serviceAccount.role '${SA_ROLE}'. Must be one of: Viewer, Editor, Admin."; exit 1 ;;
               esac
 
-              SA_NAME="mcp-server"
-              TOKEN_NAME="mcp-server-token"
+              SA_NAME="mcp-{{ .Release.Namespace | trimPrefix "duploservices-" }}"
+              TOKEN_NAME="mcp-token-{{ .Release.Namespace | trimPrefix "duploservices-" }}"
               SECRET_NAME="grafana-mcp-server"
               NAMESPACE="{{ .Release.Namespace }}"
 

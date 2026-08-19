@@ -45,6 +45,14 @@ spec:
               value: "{{ .Values.otelValidationJob.pyroDsUid }}"
             - name: ALERTMANAGER_DS_UID
               value: "{{ .Values.otelValidationJob.alertmanagerDsUid }}"
+            - name: MCP_ENABLED
+              value: {{ .Values.grafanaMCP.enabled | quote }}
+{{- if .Values.grafanaMCP.enabled }}
+            - name: MCP_SERVER_URL
+              value: "http://grafana-mcp-server:8000"
+            - name: MCP_PROXY_ENABLED
+              value: {{ .Values.grafanaMCP.proxy.enabled | quote }}
+{{- end }}
             - name: GRAFANA_USER
               valueFrom:
                 secretKeyRef:

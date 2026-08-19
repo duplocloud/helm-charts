@@ -50,4 +50,40 @@ spec:
       port: 80
       targetPort: proxy
       protocol: TCP
-{{- end }} 
+---
+{{- end }}
+{{- if .Values.grafanaMCP.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mcp-server
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: grafana-mcp-server
+spec:
+  selector:
+    app: grafana-mcp-server
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+---
+{{- end }}
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mcp-proxy
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: grafana-mcp-proxy
+spec:
+  selector:
+    app: grafana-mcp-proxy
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: proxy
+      protocol: TCP
+{{- end }}

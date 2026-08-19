@@ -132,3 +132,162 @@ spec:
       {{- end }}
 ---
 {{- end }}
+
+{{- if .Values.grafanaMCP.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mcp-server
+  namespace: {{ $.Release.Namespace }}
+spec:
+  replicas: {{ .Values.grafanaMCP.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: grafana-mcp-server
+  template:
+    metadata:
+      labels:
+        app: grafana-mcp-server
+      annotations:
+        k8s_grafana_com_scrape: "true"
+        k8s_grafana_com_job: "grafana-mcp-server"
+        k8s_grafana_com_metrics_path: "/metrics"
+        k8s_grafana_com_metrics_portNumber: "8000"
+    spec:
+      containers:
+        - name: grafana-mcp-server
+          image: "{{ .Values.grafanaMCP.image }}:{{ .Values.grafanaMCP.imageTag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -allowed-hosts={{ .Values.grafanaMCP.allowedHosts | default "*" }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: GRAFANA_URL
+              value: {{ required "grafanaMCP.grafanaUrl is required when grafanaMCP.enabled=true" .Values.grafanaMCP.grafanaUrl | quote }}
+            - name: GRAFANA_SERVICE_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-mcp-server
+                  key: token
+                  optional: true
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+{{- toYaml .Values.grafanaMCP.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop:
+                - ALL
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: grafana-mcp-server
+                topologyKey: kubernetes.io/hostname
+{{- if .Values.grafanaMCP.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
+{{- end }}
+---
+{{- end }}
+
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mcp-proxy
+  namespace: {{ $.Release.Namespace }}
+spec:
+  replicas: {{ .Values.grafanaMCP.proxy.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: grafana-mcp-proxy
+  template:
+    metadata:
+      labels:
+        app: grafana-mcp-proxy
+    spec:
+      containers:
+        - name: grafana-mcp-proxy
+          image: "{{ .Values.grafanaProxy.image }}:{{ .Values.grafanaProxy.imageTag }}"
+          ports:
+            - name: proxy
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: DUPLO_AUTH_URL
+              value: {{ required "global.duploAuthUrl is required when grafanaMCP.proxy.enabled=true" .Values.global.duploAuthUrl | quote }}
+            - name: BACKEND_URL
+              value: "http://grafana-mcp-server:8000"
+            - name: CUSTOM_HEADER_ADD
+              value: "proxy_buffering off;"
+          readinessProbe:
+            httpGet:
+              path: /duplo_auth
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /duplo_auth
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          resources:
+{{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: grafana-mcp-proxy
+                topologyKey: kubernetes.io/hostname
+{{- if .Values.grafanaMCP.proxy.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.proxy.nodeSelector | indent 8 }}
+{{- end }}
+---
+{{- end }}

@@ -84,6 +84,141 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `grafanaProxy.nodeSelector`  | Node selector for pods               | `allocationtags: duplo-observability` |
 
 
+## Grafana MCP Server Configuration
+
+The Grafana MCP server exposes Grafana capabilities (dashboards, metrics, logs, alerts, annotations) as [Model Context Protocol](https://modelcontextprotocol.io) tools, enabling AI agents (Claude Code, helpdesk portals, customer AI agents) to query and interact with the observability stack.
+
+### Architecture
+
+```
+AI agent / helpdesk portal / customer
+        │  Authorization: Bearer <duplo-api-token>
+        ▼
+grafana-mcp-proxy:80   (duplocloud/sso-proxy — validates Duplo auth)
+        ▼
+grafana-mcp-server:8000  (grafana/mcp-grafana — cluster-internal)
+        ▼
+grafana-ui:3000
+```
+
+A post-install/upgrade Helm hook job automatically creates a Grafana service account with the configured role and writes its token into a Kubernetes secret (`grafana-mcp-server`). The MCP server picks up the token on startup.
+
+### MCP Server
+
+| Key | Description | Default Value |
+|-----|-------------|---------------|
+| `grafanaMCP.enabled` | Enable or disable the Grafana MCP server | `false` |
+| `grafanaMCP.replicas` | Number of replicas | `1` |
+| `grafanaMCP.image` | Docker image | `grafana/mcp-grafana` |
+| `grafanaMCP.imageTag` | Image tag | `1.0.0` |
+| `grafanaMCP.resources` | Resource requests and limits | CPU: `100m`, Memory: `256Mi` |
+| `grafanaMCP.nodeSelector` | Node selector for pods | `allocationtags: duplo-observability` |
+| `grafanaMCP.grafanaUrl` | Internal Grafana URL the MCP server connects to | `http://grafana-ui:3000` |
+| `grafanaMCP.allowedHosts` | Comma-separated list of allowed Host header values. Set to `*` to allow all hosts (required when accessed via an ingress with a custom domain). | `*` |
+| `grafanaMCP.serviceAccount.role` | Grafana role for the MCP service account. Valid values: `Viewer`, `Editor`, `Admin` | `Viewer` |
+
+### MCP SSO Proxy
+
+The SSO proxy sits in front of the MCP server and validates every request against the Duplo auth URL. All clients (AI agents, helpdesk portals, external customers) must present a valid Duplo API token. Requires `global.duploAuthUrl` to be set.
+
+| Key | Description | Default Value |
+|-----|-------------|---------------|
+| `grafanaMCP.proxy.enabled` | Enable or disable the SSO proxy | `false` |
+| `grafanaMCP.proxy.replicas` | Number of replicas | `1` |
+| `grafanaMCP.proxy.nodeSelector` | Node selector for pods | `allocationtags: duplo-observability` |
+
+> **Proxy image and resources** are shared with `grafanaProxy` (`duplocloud/sso-proxy`). The proxy is configured with `proxy_buffering off` so SSE streams are flushed immediately to the client — do not add `proxy_http_version` to the nginx config as it is already set by the base template and will cause a duplicate-directive crash.
+
+### Service Account Setup Job
+
+A `post-install,post-upgrade` Helm hook job runs automatically to provision the Grafana service account and token:
+
+1. Waits for Grafana (`grafanaMCP.grafanaUrl/api/health`) to be healthy
+2. Creates a service account named `mcp-server` with `grafanaMCP.serviceAccount.role` (idempotent — skips creation if already exists)
+3. Validates the existing token in the `grafana-mcp-server` secret against the Grafana API — skips rotation if valid, rotates only if missing, placeholder, or invalid
+4. Writes the new token to the `grafana-mcp-server` Kubernetes secret via `kubectl apply` and restarts the MCP server pod
+
+The MCP server deployment uses `optional: true` on the secret reference so it starts immediately and becomes fully authenticated once the job completes.
+
+### Required Values
+
+When `grafanaMCP.enabled=true`:
+
+| Value | Required when |
+|-------|--------------|
+| `grafanaMCP.grafanaUrl` | Always — no default will work if Grafana is not at `http://grafana-ui:3000` |
+| `global.duploAuthUrl` | `grafanaMCP.proxy.enabled=true` (default) |
+| `secrets.grafanaUI.password` | Always — used by the setup job to authenticate to the Grafana API |
+
+### Ingress
+
+The Ingress for the MCP server is managed in the `opentelemetry-stack` repository. Point the Ingress backend at:
+
+- `grafana-mcp-proxy:80` — recommended, traffic is protected by Duplo SSO auth
+- `grafana-mcp-server:8000` — direct, use only for internal cluster access or when external auth is handled elsewhere
+
+### Connecting AI Clients
+
+Clients must pass a valid DuploCloud API token as a Bearer token. Obtain one with:
+
+```bash
+duplo-jit duplo --host https://<your-duplo-host> --interactive
+```
+
+**Claude Code** (`.mcp.json` or project-level config):
+
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "type": "sse",
+      "url": "https://<grafana-mcp-ingress-host>/sse",
+      "headers": {
+        "Authorization": "Bearer <duplo-api-token>"
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+Claude Desktop does not support `type: "sse"` with custom headers directly. Use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a stdio-to-SSE bridge:
+
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://<grafana-mcp-ingress-host>/sse",
+        "--header",
+        "Authorization:Bearer <duplo-api-token>"
+      ]
+    }
+  }
+}
+```
+
+> Note the header format is `Authorization:Bearer <token>` with no space after the colon. DuploCloud tokens expire periodically — refresh with `duplo-jit` and update the config when the connection stops working.
+
+### Example
+
+```yaml
+grafanaMCP:
+  enabled: true
+  serviceAccount:
+    role: "Editor"
+  proxy:
+    enabled: true
+
+global:
+  duploAuthUrl: "https://your-duplo.example.com"
+```
+
+
 ## Grafana Cloud PDC Configuration
 
 | Key                             | Description                                      | Default Value                               |

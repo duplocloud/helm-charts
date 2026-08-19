@@ -1,0 +1,206 @@
+{{- if and .Values.grafanaMCP.enabled .Values.grafanaMCP.proxy.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-mcp-secret-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 30
+  template:
+    spec:
+      containers:
+        - name: grafana-mcp-secret-init
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Create secret with placeholder only on first install — skip if it already exists
+              kubectl create secret generic grafana-mcp-server \
+                --namespace="{{ .Release.Namespace }}" \
+                --from-literal=token="placeholder" 2>/dev/null \
+                && echo "Created placeholder secret grafana-mcp-server" \
+                || echo "Secret grafana-mcp-server already exists, skipping"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.grafanaMCP.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-mcp-sa-setup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "15"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 400
+  template:
+    spec:
+      containers:
+        - name: grafana-mcp-sa-setup
+          image: "{{ .Values.integrationJob.image }}:{{ .Values.integrationJob.imageTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              if [ -z "${GF_ADMIN_USER}" ] || [ -z "${GF_ADMIN_PASS}" ]; then
+                echo "❌ GF_ADMIN_USER or GF_ADMIN_PASS is empty."
+                echo "   Ensure the 'grafanaui' secret exists in namespace {{ .Release.Namespace }} with 'username' and 'password' keys."
+                exit 1
+              fi
+
+              GRAFANA_URL="{{ .Values.grafanaMCP.grafanaUrl }}"
+              case "${GRAFANA_URL}" in
+                http://*|https://*) ;;
+                *) echo "❌ grafanaMCP.grafanaUrl '${GRAFANA_URL}' must start with http:// or https://"; exit 1 ;;
+              esac
+
+              SA_ROLE="{{ .Values.grafanaMCP.serviceAccount.role }}"
+              case "${SA_ROLE}" in
+                Viewer|Editor|Admin) ;;
+                *) echo "❌ Invalid grafanaMCP.serviceAccount.role '${SA_ROLE}'. Must be one of: Viewer, Editor, Admin."; exit 1 ;;
+              esac
+
+              SA_NAME="mcp-{{ .Release.Namespace | trimPrefix "duploservices-" }}"
+              TOKEN_NAME="mcp-token-{{ .Release.Namespace | trimPrefix "duploservices-" }}"
+              SECRET_NAME="grafana-mcp-server"
+              NAMESPACE="{{ .Release.Namespace }}"
+
+              # Wait for Grafana to be healthy (max 5 minutes)
+              echo "Waiting for Grafana at ${GRAFANA_URL}..."
+              MAX_RETRIES=30
+              RETRY=0
+              until curl -sf "${GRAFANA_URL}/api/health" > /dev/null; do
+                RETRY=$((RETRY + 1))
+                if [ "$RETRY" -ge "$MAX_RETRIES" ]; then
+                  echo "❌ Grafana did not become ready after $((MAX_RETRIES * 10))s"
+                  exit 1
+                fi
+                echo "Grafana not ready, retrying in 10s... ($RETRY/$MAX_RETRIES)"
+                sleep 10
+              done
+              echo "Grafana is ready."
+
+              # Find existing service account or create it
+              SA_ID=$(curl -sf \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/search?query=${SA_NAME}" \
+                | jq -r '.serviceAccounts[] | select(.name=="'"${SA_NAME}"'") | .id // empty')
+
+              if [ -z "$SA_ID" ] || [ "$SA_ID" = "null" ]; then
+                echo "Creating service account '${SA_NAME}' with role '${SA_ROLE}'..."
+                SA_ID=$(curl -sf -X POST \
+                  -H "Content-Type: application/json" \
+                  -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                  "${GRAFANA_URL}/api/serviceaccounts" \
+                  -d "{\"name\":\"${SA_NAME}\",\"role\":\"${SA_ROLE}\"}" \
+                  | jq -r '.id')
+                echo "Service account created with ID: ${SA_ID}"
+              else
+                echo "Service account '${SA_NAME}' already exists with ID: ${SA_ID}"
+              fi
+
+              if [ -z "$SA_ID" ] || [ "$SA_ID" = "null" ]; then
+                echo "❌ Failed to get or create service account '${SA_NAME}'"
+                exit 1
+              fi
+
+              # Check if existing K8s secret token is still valid — skip rotation if so
+              EXISTING_TOKEN=$(kubectl get secret "${SECRET_NAME}" \
+                -n "${NAMESPACE}" -o jsonpath='{.data.token}' 2>/dev/null | base64 -d || true)
+
+              if [ -n "${EXISTING_TOKEN}" ] && [ "${EXISTING_TOKEN}" != "placeholder" ]; then
+                HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+                  -H "Authorization: Bearer ${EXISTING_TOKEN}" \
+                  "${GRAFANA_URL}/api/user" 2>/dev/null || echo 000)
+                if [ "${HTTP_CODE}" = "200" ]; then
+                  echo "Existing token is valid (HTTP 200) — skipping rotation"
+                  echo "✅ Grafana MCP service account setup complete."
+                  exit 0
+                fi
+                echo "Existing token invalid (HTTP ${HTTP_CODE}) — rotating..."
+              fi
+
+              # Delete existing token and create a fresh one
+              TOKEN_ID=$(curl -sf \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens" \
+                | jq -r '.[] | select(.name=="'"${TOKEN_NAME}"'") | .id // empty')
+
+              if [ -n "$TOKEN_ID" ]; then
+                echo "Deleting existing token '${TOKEN_NAME}'..."
+                curl -sf -X DELETE \
+                  -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                  "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens/${TOKEN_ID}"
+              fi
+
+              # Create new token
+              echo "Creating token '${TOKEN_NAME}'..."
+              TOKEN=$(curl -sf -X POST \
+                -H "Content-Type: application/json" \
+                -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens" \
+                -d "{\"name\":\"${TOKEN_NAME}\"}" \
+                | jq -r '.key')
+
+              if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+                echo "❌ Failed to create token '${TOKEN_NAME}' — received empty or null response"
+                exit 1
+              fi
+
+              # Create or update the K8s secret
+              echo "Writing token to secret '${SECRET_NAME}'..."
+              kubectl create secret generic "${SECRET_NAME}" \
+                --namespace="${NAMESPACE}" \
+                --from-literal=token="${TOKEN}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+
+              # Restart MCP server so it picks up the rotated token
+              kubectl rollout restart deployment/grafana-mcp-server -n "${NAMESPACE}"
+
+              echo "✅ Grafana MCP service account setup complete."
+          env:
+            - name: GF_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: username
+            - name: GF_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: grafanaui
+                  key: password
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      serviceAccountName: {{ .Release.Namespace }}-edit-user
+      restartPolicy: Never
+{{- if .Values.grafanaMCP.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
+{{- end }}
+{{- end }}

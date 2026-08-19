@@ -9,13 +9,13 @@ jobs:
     name: Validate PR title (conventional commits)
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: write
     steps:
       - uses: amannn/action-semantic-pull-request@v5
+        id: lint_pr_title
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Valid types (must match release-please expectations)
           types: |
             feat
             fix
@@ -27,10 +27,42 @@ jobs:
             ci
             build
             revert
-          # Require a scope e.g. feat(aos): ...
           requireScope: false
-          # Disallow uppercase first letter in the subject
           subjectPattern: ^[^A-Z].*$
           subjectPatternError: |
             The subject "{subject}" found in the PR title "{title}" must start with a lowercase letter.
-            Example: feat(aos): add grafana mcp server
+
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && (steps.lint_pr_title.outputs.error_message != null)
+        with:
+          header: pr-title-lint-error
+          message: |
+            ❌ **PR title does not follow [Conventional Commits](https://www.conventionalcommits.org/) format.**
+
+            **Error:** ${{ steps.lint_pr_title.outputs.error_message }}
+
+            **Required format:** `type(scope): description`
+
+            | Type | When to use |
+            |------|-------------|
+            | `feat` | New feature |
+            | `fix` | Bug fix |
+            | `chore` | Maintenance, dependency bumps |
+            | `docs` | Documentation only |
+            | `refactor` | Code change, no feature/fix |
+            | `ci` | CI/CD changes |
+
+            **Examples:**
+            ```
+            feat(aos): add grafana mcp server
+            fix(aos): update sso-proxy image tag
+            chore: bump helm dependencies
+            ```
+
+            > This is required so release-please can automatically version and changelog your changes.
+
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: steps.lint_pr_title.outputs.error_message == null
+        with:
+          header: pr-title-lint-error
+          delete: true

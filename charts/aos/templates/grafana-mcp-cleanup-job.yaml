@@ -57,11 +57,13 @@ spec:
                 secretKeyRef:
                   name: grafanaui
                   key: username
+                  optional: true
             - name: GF_ADMIN_PASS
               valueFrom:
                 secretKeyRef:
                   name: grafanaui
                   key: password
+                  optional: true
           resources:
             requests:
               cpu: "50m"

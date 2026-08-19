@@ -125,7 +125,23 @@ spec:
                 exit 1
               fi
 
-              # Delete existing token — tokens cannot be retrieved after creation so rotate on every upgrade
+              # Check if existing K8s secret token is still valid — skip rotation if so
+              EXISTING_TOKEN=$(kubectl get secret "${SECRET_NAME}" \
+                -n "${NAMESPACE}" -o jsonpath='{.data.token}' 2>/dev/null | base64 -d || true)
+
+              if [ -n "${EXISTING_TOKEN}" ] && [ "${EXISTING_TOKEN}" != "placeholder" ]; then
+                HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+                  -H "Authorization: Bearer ${EXISTING_TOKEN}" \
+                  "${GRAFANA_URL}/api/user" 2>/dev/null || echo 000)
+                if [ "${HTTP_CODE}" = "200" ]; then
+                  echo "Existing token is valid (HTTP 200) — skipping rotation"
+                  echo "✅ Grafana MCP service account setup complete."
+                  exit 0
+                fi
+                echo "Existing token invalid (HTTP ${HTTP_CODE}) — rotating..."
+              fi
+
+              # Delete existing token and create a fresh one
               TOKEN_ID=$(curl -sf \
                 -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
                 "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}/tokens" \
@@ -159,7 +175,7 @@ spec:
                 --from-literal=token="${TOKEN}" \
                 --dry-run=client -o yaml | kubectl apply -f -
 
-              # Restart MCP server so it picks up the new token from the updated secret
+              # Restart MCP server so it picks up the rotated token
               kubectl rollout restart deployment/grafana-mcp-server -n "${NAMESPACE}"
 
               echo "✅ Grafana MCP service account setup complete."

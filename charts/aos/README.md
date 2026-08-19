@@ -96,7 +96,7 @@ AI agent / helpdesk portal / customer
         ▼
 grafana-mcp-proxy:80   (duplocloud/sso-proxy — validates Duplo auth)
         ▼
-grafana-mcp-server:8080  (ghcr.io/grafana/mcp-grafana — cluster-internal)
+grafana-mcp-server:8000  (grafana/mcp-grafana — cluster-internal)
         ▼
 grafana-ui:3000
 ```
@@ -115,7 +115,7 @@ A post-install/upgrade Helm hook job automatically creates a Grafana service acc
 | `grafanaMCP.nodeSelector` | Node selector for pods | `allocationtags: duplo-observability` |
 | `grafanaMCP.grafanaUrl` | Internal Grafana URL the MCP server connects to | `http://grafana-ui:3000` |
 | `grafanaMCP.allowedHosts` | Comma-separated list of allowed Host header values. Set to `*` to allow all hosts (required when accessed via an ingress with a custom domain). | `*` |
-| `grafanaMCP.serviceAccount.role` | Grafana role for the MCP service account. Valid values: `Viewer`, `Editor`, `Admin` | `Editor` |
+| `grafanaMCP.serviceAccount.role` | Grafana role for the MCP service account. Valid values: `Viewer`, `Editor`, `Admin` | `Viewer` |
 
 ### MCP SSO Proxy
 
@@ -135,8 +135,8 @@ A `post-install,post-upgrade` Helm hook job runs automatically to provision the 
 
 1. Waits for Grafana (`grafanaMCP.grafanaUrl/api/health`) to be healthy
 2. Creates a service account named `mcp-server` with `grafanaMCP.serviceAccount.role` (idempotent — skips creation if already exists)
-3. Rotates the token on every upgrade (deletes old `mcp-server-token`, creates a new one)
-4. Writes the token to the `grafana-mcp-server` Kubernetes secret via `kubectl apply`
+3. Validates the existing token in the `grafana-mcp-server` secret against the Grafana API — skips rotation if valid, rotates only if missing, placeholder, or invalid
+4. Writes the new token to the `grafana-mcp-server` Kubernetes secret via `kubectl apply` and restarts the MCP server pod
 
 The MCP server deployment uses `optional: true` on the secret reference so it starts immediately and becomes fully authenticated once the job completes.
 
@@ -155,7 +155,7 @@ When `grafanaMCP.enabled=true`:
 The Ingress for the MCP server is managed in the `opentelemetry-stack` repository. Point the Ingress backend at:
 
 - `grafana-mcp-proxy:80` — recommended, traffic is protected by Duplo SSO auth
-- `grafana-mcp-server:8080` — direct, use only for internal cluster access or when external auth is handled elsewhere
+- `grafana-mcp-server:8000` — direct, use only for internal cluster access or when external auth is handled elsewhere
 
 ### Connecting AI Clients
 

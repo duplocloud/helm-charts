@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.5.0](https://github.com/duplocloud/helm-charts/compare/aos-v2.4.0...aos-v2.5.0) (2026-08-19)
+
+
+### Features
+
+* **aos:** serviceAccountName fallback for observability collector cronjob ([#40](https://github.com/duplocloud/helm-charts/issues/40)) ([44f7a32](https://github.com/duplocloud/helm-charts/commit/44f7a32828c8e1917b2270f5ef67f24ec96ab6c7))
+* **aos:** upgrade Grafana to 13.0.2 and increase resource limits ([#38](https://github.com/duplocloud/helm-charts/issues/38)) ([fa70691](https://github.com/duplocloud/helm-charts/commit/fa70691b27cd84c8f826664253bb0b3498a63a83))
+
+
+### Bug Fixes
+
+* update image tags for grafanaUI and duploAutomation, enable blackbox exporter ([a07011e](https://github.com/duplocloud/helm-charts/commit/a07011e59337b1d6f43af9bb9c832819e8aeca6f))
+
 ## [2.4.0](https://github.com/duplocloud/helm-charts/compare/aos-2.3.0...aos-2.4.0) (2026-08-19)
 
 

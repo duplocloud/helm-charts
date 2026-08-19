@@ -123,7 +123,7 @@ The SSO proxy sits in front of the MCP server and validates every request agains
 
 | Key | Description | Default Value |
 |-----|-------------|---------------|
-| `grafanaMCP.proxy.enabled` | Enable or disable the SSO proxy | `true` |
+| `grafanaMCP.proxy.enabled` | Enable or disable the SSO proxy | `false` |
 | `grafanaMCP.proxy.replicas` | Number of replicas | `1` |
 | `grafanaMCP.proxy.nodeSelector` | Node selector for pods | `allocationtags: duplo-observability` |
 

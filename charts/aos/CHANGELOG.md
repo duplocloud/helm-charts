@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/duplocloud/helm-charts/compare/aos-2.4.0...aos-v2.5.0) (2026-08-26)
+
+
+### Features
+
+* **aos:** update grafana image tags and remove custom header ([#46](https://github.com/duplocloud/helm-charts/issues/46)) ([73d5c3b](https://github.com/duplocloud/helm-charts/commit/73d5c3b279e5650912f387fbc7dfc30c997d6775))
+
 ## [2.4.0](https://github.com/duplocloud/helm-charts/compare/aos-2.3.0...aos-2.4.0) (2026-08-19)
 
 

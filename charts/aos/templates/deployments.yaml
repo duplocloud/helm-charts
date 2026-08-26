@@ -31,8 +31,6 @@ spec:
               value: {{ .Values.global.duploAuthUrl | quote }}
             - name: BACKEND_URL
               value: "http://grafana-ui:3000"
-            - name: CUSTOM_HEADER_ADD
-              value: "proxy_set_header X-WEBAUTH-USER duplocloud;"
           readinessProbe:
             httpGet:
               path: /duplo_auth

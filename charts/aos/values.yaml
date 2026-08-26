@@ -22,7 +22,7 @@ grafanaUI:
   enabled: true
   replicas: 1
   image: "duplocloud/otel-dashboards"
-  imageTag: "13.0.2-v1"
+  imageTag: "13.0.2-v2"
   resources:
     limits:
       cpu: "300m"
@@ -88,7 +88,7 @@ grafanaProxy:
   enabled: true
   replicas: 1
   image: "duplocloud/sso-proxy"
-  imageTag: "v2.0.6-otel"
+  imageTag: "v2.0.7-otel"
   resources:
     limits:
       cpu: "50m"
@@ -145,7 +145,7 @@ observabilityCollector:
   
 # Grafana MCP Server settings
 grafanaMCP:
-  enabled: true
+  enabled: false
   replicas: 1
   image: "grafana/mcp-grafana"
   imageTag: "1.0.0"

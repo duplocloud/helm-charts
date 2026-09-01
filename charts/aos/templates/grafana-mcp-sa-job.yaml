@@ -21,11 +21,14 @@ spec:
             - -c
             - |
               # Create secret with placeholder only on first install — skip if it already exists
-              kubectl create secret generic grafana-mcp-server \
-                --namespace="{{ .Release.Namespace }}" \
-                --from-literal=token="placeholder" 2>/dev/null \
-                && echo "Created placeholder secret grafana-mcp-server" \
-                || echo "Secret grafana-mcp-server already exists, skipping"
+              if kubectl get secret grafana-mcp-server --namespace="{{ .Release.Namespace }}" > /dev/null 2>&1; then
+                echo "Secret grafana-mcp-server already exists, skipping"
+              else
+                kubectl create secret generic grafana-mcp-server \
+                  --namespace="{{ .Release.Namespace }}" \
+                  --from-literal=token="placeholder"
+                echo "Created placeholder secret grafana-mcp-server"
+              fi
           resources:
             requests:
               cpu: "50m"
@@ -51,7 +54,7 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   backoffLimit: 0
-  activeDeadlineSeconds: 400
+  activeDeadlineSeconds: 600
   template:
     spec:
       containers:
@@ -117,7 +120,12 @@ spec:
                   | jq -r '.id')
                 echo "Service account created with ID: ${SA_ID}"
               else
-                echo "Service account '${SA_NAME}' already exists with ID: ${SA_ID}"
+                echo "Service account '${SA_NAME}' already exists with ID: ${SA_ID}, updating role to '${SA_ROLE}'..."
+                curl -sf -X PATCH \
+                  -H "Content-Type: application/json" \
+                  -u "${GF_ADMIN_USER}:${GF_ADMIN_PASS}" \
+                  "${GRAFANA_URL}/api/serviceaccounts/${SA_ID}" \
+                  -d "{\"role\":\"${SA_ROLE}\"}" > /dev/null
               fi
 
               if [ -z "$SA_ID" ] || [ "$SA_ID" = "null" ]; then
@@ -176,7 +184,11 @@ spec:
                 --dry-run=client -o yaml | kubectl apply -f -
 
               # Restart MCP server so it picks up the rotated token
-              kubectl rollout restart deployment/grafana-mcp-server -n "${NAMESPACE}"
+              if kubectl get deployment grafana-mcp-server -n "${NAMESPACE}" > /dev/null 2>&1; then
+                kubectl rollout restart deployment/grafana-mcp-server -n "${NAMESPACE}"
+              else
+                echo "Deployment grafana-mcp-server not found, skipping rollout restart"
+              fi
 
               echo "✅ Grafana MCP service account setup complete."
           env:

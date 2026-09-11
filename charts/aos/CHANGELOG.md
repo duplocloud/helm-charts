@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.2](https://github.com/duplocloud/helm-charts/compare/aos-2.5.1...aos-v2.5.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **aos:** update grafanaUI image tag to 13.0.2-v5 ([#49](https://github.com/duplocloud/helm-charts/issues/49)) ([c2c289c](https://github.com/duplocloud/helm-charts/commit/c2c289cc6c24f03787fcddcae5979a337fc56822))
+
 ## [2.5.1](https://github.com/duplocloud/helm-charts/compare/aos-2.5.0...aos-v2.5.1) (2026-09-11)
 
 

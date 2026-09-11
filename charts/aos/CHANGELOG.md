@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/duplocloud/helm-charts/compare/aos-2.5.0...aos-v2.5.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* grafana mcp bug ([#47](https://github.com/duplocloud/helm-charts/issues/47)) ([dbc26d1](https://github.com/duplocloud/helm-charts/commit/dbc26d11257b8a7995240ee9b10199ae0ad8b278))
+
 ## [2.5.0](https://github.com/duplocloud/helm-charts/compare/aos-2.4.0...aos-v2.5.0) (2026-08-26)
 
 

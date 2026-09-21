@@ -53,10 +53,9 @@ spec:
             failureThreshold: 5
           resources:
 {{- toYaml .Values.grafanaProxy.resources | nindent 12 }}
-{{- if .Values.grafanaProxy.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.grafanaProxy.nodeSelector | indent 8 }}
-{{- end }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.grafanaProxy.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.grafanaProxy.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.grafanaProxy.tolerations) | nindent 6 }}
 ---
 {{- end }}
 
@@ -124,10 +123,9 @@ spec:
         runAsUser: 30000
         runAsGroup: 30000
         fsGroup: 30000
-      {{- if .Values.pdc.nodeSelector }}
-      nodeSelector:
-      {{ toYaml .Values.pdc.nodeSelector | indent 8 }}
-      {{- end }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.pdc.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.pdc.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.pdc.tolerations) | nindent 6 }}
 ---
 {{- end }}
 
@@ -208,10 +206,9 @@ spec:
                   matchLabels:
                     app: grafana-mcp-server
                 topologyKey: kubernetes.io/hostname
-{{- if .Values.grafanaMCP.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.grafanaMCP.nodeSelector | indent 8 }}
-{{- end }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.grafanaMCP.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.grafanaMCP.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.grafanaMCP.tolerations) | nindent 6 }}
 ---
 {{- end }}
 
@@ -283,9 +280,8 @@ spec:
                   matchLabels:
                     app: grafana-mcp-proxy
                 topologyKey: kubernetes.io/hostname
-{{- if .Values.grafanaMCP.proxy.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.grafanaMCP.proxy.nodeSelector | indent 8 }}
-{{- end }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.grafanaMCP.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.grafanaMCP.proxy.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.grafanaMCP.proxy.tolerations) | nindent 6 }}
 ---
 {{- end }}

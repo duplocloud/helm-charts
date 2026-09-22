@@ -82,6 +82,7 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `grafanaProxy.imageTag`      | Image tag                            | `v2.0.6-otel`                         |
 | `grafanaProxy.resources`     | Resource requests and limits         | CPU: `50m`, Memory: `128Mi`           |
 | `grafanaProxy.nodeSelector`  | Node selector for pods               | `allocationtags: duplo-observability` |
+| `grafanaProxy.extraEnv`      | Additional environment variables (YAML list) | `[]`                          |
 
 
 ## Grafana MCP Server Configuration
@@ -395,6 +396,11 @@ duploAutomation:
   extraEnv:
     - name: CUSTOM_VAR1
       value: "value1"
+
+grafanaProxy:
+  extraEnv:
+    - name: CUSTOM_HEADER_ADD
+      value: "proxy_read_timeout 300s;"
 ```
 
 

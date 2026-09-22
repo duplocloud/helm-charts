@@ -107,10 +107,9 @@ spec:
                   matchLabels:
                     app: grafana-ui
                 topologyKey: kubernetes.io/hostname
-{{- if .Values.grafanaUI.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.grafanaUI.nodeSelector | indent 8 }}
-{{- end }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.grafanaUI.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.grafanaUI.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.grafanaUI.tolerations) | nindent 6 }}
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -262,10 +261,9 @@ spec:
                   matchLabels:
                     app: duplo-automation
                 topologyKey: kubernetes.io/hostname
-{{- if .Values.duploAutomation.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.duploAutomation.nodeSelector | indent 8 }}
-{{- end }}
+      serviceAccountName: {{ include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.duploAutomation.serviceAccountName "namespace" .Release.Namespace) }}
+{{- include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.duploAutomation.nodeSelector) | nindent 6 }}
+{{- include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.duploAutomation.tolerations) | nindent 6 }}
   volumeClaimTemplates:
     - metadata:
         name: data

@@ -1,28 +1,57 @@
 {{- /*
 Return the serviceAccountName for a component.
-Call with: include "aos.serviceAccountName" (dict "root" . "component" "grafana")
+Call with: include "aos.serviceAccountName" (dict "global" .Values.global.serviceAccountName "local" .Values.<component>.serviceAccountName "namespace" .Release.Namespace)
 Fallback order:
-  1) .Values.<component>.serviceAccountName (if non-empty)
-  2) .Values.global.serviceAccountName (if non-empty)
-  3) "<Release.Namespace>-edit-user"
+  1) local (if non-empty)
+  2) global (if non-empty)
+  3) "<namespace>-edit-user"
 */ -}}
 {{- define "aos.serviceAccountName" -}}
-  {{- $root := .root -}}
-  {{- $component := .component -}}
-  {{- $vals := $root.Values -}}
-
-  {{- /* try component-specific value first */ -}}
-  {{- $compSA := "" -}}
-  {{- if and (hasKey $vals $component) (hasKey (index $vals $component) "serviceAccountName") -}}
-    {{- $compSA = (index $vals $component "serviceAccountName") -}}
-  {{- end -}}
-
-  {{- /* treat empty string or whitespace as not set */ -}}
-  {{- if and (typeIs "string" $compSA) (ne (trim $compSA) "") -}}
-    {{- trim $compSA -}}
-  {{- else if and (hasKey $vals "global") (hasKey $vals.global "serviceAccountName") (ne (trim $vals.global.serviceAccountName) "") -}}
-    {{- trim $vals.global.serviceAccountName -}}
+  {{- $local := .local -}}
+  {{- $global := .global -}}
+  {{- if and (typeIs "string" $local) (ne (trim $local) "") -}}
+    {{- trim $local -}}
+  {{- else if and (typeIs "string" $global) (ne (trim $global) "") -}}
+    {{- trim $global -}}
   {{- else -}}
-    {{- printf "%s-edit-user" $root.Release.Namespace -}}
+    {{- printf "%s-edit-user" .namespace -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /*
+Return a rendered "nodeSelector:" block for a component, or nothing if neither is set.
+Call with: include "aos.nodeSelector" (dict "global" .Values.global.nodeSelector "local" .Values.<component>.nodeSelector)
+Fallback order:
+  1) local (if non-empty)
+  2) global (if non-empty)
+Pipe the result through `nindent <N>` at the call site.
+*/ -}}
+{{- define "aos.nodeSelector" -}}
+  {{- $ns := .local -}}
+  {{- if not $ns -}}
+    {{- $ns = .global -}}
+  {{- end -}}
+  {{- if $ns -}}
+nodeSelector:
+{{ toYaml $ns | indent 2 }}
+  {{- end -}}
+{{- end -}}
+
+{{- /*
+Return a rendered "tolerations:" block for a component, or nothing if neither is set.
+Call with: include "aos.tolerations" (dict "global" .Values.global.tolerations "local" .Values.<component>.tolerations)
+Fallback order:
+  1) local (if non-empty)
+  2) global (if non-empty)
+Pipe the result through `nindent <N>` at the call site.
+*/ -}}
+{{- define "aos.tolerations" -}}
+  {{- $tol := .local -}}
+  {{- if not $tol -}}
+    {{- $tol = .global -}}
+  {{- end -}}
+  {{- if $tol -}}
+tolerations:
+{{ toYaml $tol | indent 2 }}
   {{- end -}}
 {{- end -}}

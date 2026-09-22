@@ -31,6 +31,9 @@ spec:
               value: {{ .Values.global.duploAuthUrl | quote }}
             - name: BACKEND_URL
               value: "http://grafana-ui:3000"
+          {{- with .Values.grafanaProxy.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /duplo_auth

@@ -98,6 +98,10 @@ grafanaProxy:
       memory: "128Mi"
   nodeSelector: 
     allocationtags: duplo-observability
+  # Additional environment variables for the grafana-proxy pod (YAML list of k8s EnvVar)
+  # - name: CUSTOM_HEADER_ADD
+  #   value: "proxy_read_timeout 300s;"
+  extraEnv: []
 
 # Secrets
 secrets:

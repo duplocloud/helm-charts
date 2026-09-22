@@ -16,6 +16,8 @@ global:
   cloud: ""
   duploReleaseBranch: "main"
   serviceAccountName: "" # Fallback service account for all pods — overridden by per-component serviceAccountName; defaults to <namespace>-edit-user when empty
+  nodeSelector: {}       # Fallback nodeSelector for all pods — overridden by per-component nodeSelector
+  tolerations: []        # Fallback tolerations for all pods — overridden by per-component tolerations
 
 # Grafana UI settings
 grafanaUI:
@@ -32,8 +34,10 @@ grafanaUI:
       memory: "1Gi"
   volume:
     size: "10Gi"
-  nodeSelector: 
+  nodeSelector:
     allocationtags: duplo-observability
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
   plugins: "grafana-metricsdrilldown-app@2.0.2,grafana-lokiexplore-app@2.0.3,grafana-exploretraces-app@2.0.2,grafana-pyroscope-app@2.0.4,grafana-llm-app@1.0.8,yesoreyeram-infinity-datasource@3.8.0,volkovlabs-form-panel@6.3.2"
   extraPlugins: ""
   persistence:
@@ -69,8 +73,10 @@ duploAutomation:
   imageTag: "4.0.0"
   volume:
     size: "10Gi"
-  nodeSelector: 
+  nodeSelector:
     allocationtags: duplo-observability
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
   persistence:
     enabled: true
     storageClass: ""
@@ -96,12 +102,14 @@ grafanaProxy:
     requests:
       cpu: "50m"
       memory: "128Mi"
-  nodeSelector: 
+  nodeSelector:
     allocationtags: duplo-observability
   # Additional environment variables for the grafana-proxy pod (YAML list of k8s EnvVar)
   # - name: CUSTOM_HEADER_ADD
   #   value: "proxy_read_timeout 300s;"
   extraEnv: []
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
 
 # Secrets
 secrets:
@@ -115,8 +123,10 @@ integrationJob:
   enabled: true
   image: "alpine/k8s"
   imageTag: "1.35.4"
-  nodeSelector: 
+  nodeSelector:
     allocationtags: duplo-observability
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
 
 # Observability Collector CronJob settings
 observabilityCollector:
@@ -127,6 +137,7 @@ observabilityCollector:
   jobVersion: "2.2.0"
   nodeSelector:
     allocationtags: duplo-observability
+  tolerations: [] # Overrides global.tolerations
   serviceAccountName: "" # Overrides global.serviceAccountName
   extraEnv: []
   # Source credentials for multi-tenant clusters — leave blank for single-tenant
@@ -149,7 +160,7 @@ observabilityCollector:
   
 # Grafana MCP Server settings
 grafanaMCP:
-  enabled: true
+  enabled: false
   replicas: 1
   image: "grafana/mcp-grafana"
   imageTag: "1.0.0"
@@ -162,6 +173,8 @@ grafanaMCP:
       memory: "256Mi"
   nodeSelector:
     allocationtags: duplo-observability
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
   grafanaUrl: "http://grafana-ui:3000"
   allowedHosts: "*"
   serviceAccount:
@@ -171,6 +184,7 @@ grafanaMCP:
     replicas: 1
     nodeSelector:
       allocationtags: duplo-observability
+    tolerations: [] # Overrides global.tolerations
 
 # Grafana Cloud PDC settings
 pdc:
@@ -191,8 +205,10 @@ pdc:
       memory: 1Gi
   image: "alpine/k8s"
   imageTag: "1.35.4"
-  nodeSelector: 
+  nodeSelector:
     allocationtags: duplo-observability
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
 
 # Tracing Healthcheck Configuration
 tracing:
@@ -213,7 +229,9 @@ otelValidationJob:
   alertmanagerDsUid: "duplo-alertmanager"
   nodeSelector:
     allocationtags: duplo-observability
-  
+  tolerations: [] # Overrides global.tolerations
+  serviceAccountName: "" # Overrides global.serviceAccountName
+
 # Blackbox Exporter settings
 blackboxexporter:
   enabled: true

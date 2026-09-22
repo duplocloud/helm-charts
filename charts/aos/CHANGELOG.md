@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.6.0](https://github.com/duplocloud/helm-charts/compare/aos-2.5.2...aos-v2.6.0) (2026-09-22)
+
+
+### Features
+
+* **aos:** add global-fallback overrides for serviceAccountName, nodeSelector, and tolerations ([#51](https://github.com/duplocloud/helm-charts/issues/51)) ([6e2b9ee](https://github.com/duplocloud/helm-charts/commit/6e2b9ee80147997c72cd74835a932ad890225c9f))
+* **aos:** support extraEnv on the grafana-proxy pod ([#52](https://github.com/duplocloud/helm-charts/issues/52)) ([3bddac1](https://github.com/duplocloud/helm-charts/commit/3bddac1ec07faa80cd6ceb7f9ee6205f7d2e8d38))
+
 ## [2.5.2](https://github.com/duplocloud/helm-charts/compare/aos-2.5.1...aos-v2.5.2) (2026-09-11)
 
 

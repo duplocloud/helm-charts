@@ -116,6 +116,9 @@ secrets:
   grafanaUI:
     username: "duplocloud"
     password: ""
+  # Passphrase that decrypts the central-Loki credentials baked into the
+  # duplo-observability image. Required by the observability collector CronJob: when this
+  # is empty the CronJob is not scheduled at all (see observabilityCollector.enabled).
   gpgPassphrase: ""
   
 # Integration Job settings
@@ -130,6 +133,8 @@ integrationJob:
 
 # Observability Collector CronJob settings
 observabilityCollector:
+  # Scheduled only when enabled is true AND secrets.gpgPassphrase is non-empty -- the
+  # collector cannot authenticate to central Loki without the passphrase.
   enabled: true
   schedule: "0 0 * * *"
   image: "duplocloud/duplo-observability"

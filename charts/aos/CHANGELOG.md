@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.1](https://github.com/duplocloud/helm-charts/compare/aos-2.6.0...aos-v2.6.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **aos:** skip observability collector CronJob without gpgPassphrase ([#55](https://github.com/duplocloud/helm-charts/issues/55)) ([5fe5e41](https://github.com/duplocloud/helm-charts/commit/5fe5e41f9357051595ea09c151b8d67b7d884286))
+
 ## [2.6.0](https://github.com/duplocloud/helm-charts/compare/aos-2.5.2...aos-v2.6.0) (2026-09-22)
 
 

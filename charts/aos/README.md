@@ -257,7 +257,7 @@ global:
 |---------------------------|------------------------------|----------------|
 | `secrets.grafanaUI.username` | Grafana UI admin username | `duplocloud`   |
 | `secrets.grafanaUI.password` | Grafana UI admin password | `""`           |
-| `secrets.gpgPassphrase`      | GPG passphrase for secrets | `""`           |
+| `secrets.gpgPassphrase`      | Decrypts the central-Loki credentials baked into the `duplo-observability` image. Required by the [Observability Collector](#observability-collector-configuration) — the CronJob is not scheduled when this is empty. | `""` |
 
 
 ## Alert Notifications
@@ -297,9 +297,21 @@ requires re-running the bootstrap job or calling `/enable-integration` directly.
 
 ## Observability Collector Configuration
 
+The `otel-observability-collector` CronJob gathers usage and version telemetry and pushes
+it to DuploCloud's central Loki. The credentials for that push are baked into the
+`duplo-observability` image as GPG-encrypted blobs, and `secrets.gpgPassphrase` is what
+decrypts them at runtime.
+
+The CronJob is therefore scheduled only when **both** `observabilityCollector.enabled` is
+`true` **and** `secrets.gpgPassphrase` is non-empty. Without the passphrase the container
+cannot start (the `gpg-passphrase` Secret is not created either), and there is no mode in
+which the collector does useful work, so it is skipped entirely rather than left to fail on
+every run.
+
+
 | Key                                 | Description                          | Default Value                         |
 |-------------------------------------|--------------------------------------|---------------------------------------|
-| `observabilityCollector.enabled`    | Enable or disable the cron job       | `true`                                |
+| `observabilityCollector.enabled`    | Enable or disable the cron job. Also requires `secrets.gpgPassphrase` | `true`               |
 | `observabilityCollector.schedule`   | Cron schedule                        | `0 0 * * *`                           |
 | `observabilityCollector.image`      | Docker image                         | `duplocloud/duplo-observability`      |
 | `observabilityCollector.imageTag`   | Image tag                            | `stable`                              |

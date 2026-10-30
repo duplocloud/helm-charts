@@ -1,4 +1,11 @@
-{{- if .Values.observabilityCollector.enabled }}
+{{- /*
+  The collector decrypts the central-Loki credentials baked into its image using
+  GPG_PASSPHRASE, so it cannot do any useful work without it. secrets.yaml only creates the
+  gpg-passphrase Secret when secrets.gpgPassphrase is set, so this guard must match --
+  otherwise the CronJob references a Secret that does not exist and every scheduled run
+  lands in CreateContainerConfigError.
+*/ -}}
+{{- if and .Values.observabilityCollector.enabled .Values.secrets.gpgPassphrase }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:

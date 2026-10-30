@@ -30,6 +30,18 @@ spec:
               curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
                 --header 'Content-Type:application/json' \
                 --data-raw "{\"integration_name\":\"duplo-bootstrap\",\"context_name\":\"duplo-otel\",\"branch_name\":\"$branchName\"}" || { echo "❌ Failed to enable duplo-bootstrap"; exit 1; }
+{{- if and .Values.global.slackWebhookUrl .Values.global.oncallWebhookUrl }}
+              # Alert notification routing (Slack contact point, on-call relay contact point,
+              # the Grafana notification policy and the full Mimir Alertmanager config) is
+              # opt-in: it is only provisioned when both webhook URLs are configured.
+              # Must run after duplo-bootstrap, which supplies the base Mimir Alertmanager config.
+              echo "Enabling duplo-notification"
+              curl --fail --silent --show-error --location "$DUPLO_AUTOMATION_ENDPOINT/enable-integration" \
+                --header 'Content-Type:application/json' \
+                --data-raw "{\"integration_name\":\"duplo-notification\",\"context_name\":\"duplo-otel\",\"branch_name\":\"$branchName\"}" || { echo "❌ Failed to enable duplo-notification"; exit 1; }
+{{- else }}
+              echo "ℹ️  Skipping duplo-notification: global.slackWebhookUrl and global.oncallWebhookUrl must both be set."
+{{- end }}
               echo "✅ Duplo bootstrap integration completed successfully."
           env:
             - name: DUPLO_AUTOMATION_DEPLOYMENT_NAME

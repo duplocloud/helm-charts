@@ -9,6 +9,10 @@ global:
   namespaceFilter: ".*otel.*"
   release: "2.1.1"
   grafanaProxyUrl: ""
+  # Alert notification routing is opt-in. Both of the following must be set for the
+  # duplo-notification integration to be provisioned (Slack contact point, on-call relay
+  # contact point, Grafana notification policy, AlertmanagerWebhookFailed rule and the full
+  # Mimir Alertmanager config). If either is empty, none of them are created.
   slackWebhookUrl: ""
   oncallWebhookUrl: ""
   automationWebhookUrl: "http://duplo-automation:5000/alertmanager/webhook"

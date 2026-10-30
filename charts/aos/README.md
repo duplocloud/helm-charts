@@ -15,8 +15,8 @@ This Helm chart deploys the Duplo OpenTelemetry stack, including Grafana UI, syn
 | `global.namespaceFilter`     | Regex filter for namespaces                  | `.*otel.*`                                          |
 | `global.release`             | Release version                              | `""`                                                |
 | `global.grafanaProxyUrl`     | URL for Grafana Proxy                        | `""`                                                |
-| `global.slackWebhookUrl`     | Slack webhook URL for notifications          | `""`                                                |
-| `global.oncallWebhookUrl`    | On-call webhook URL for notifications        | `""`                                                |
+| `global.slackWebhookUrl`     | Slack webhook URL. Optional — see [Alert Notifications](#alert-notifications) | `""`               |
+| `global.oncallWebhookUrl`    | On-call webhook URL. Optional — see [Alert Notifications](#alert-notifications) | `""`             |
 | `global.automationWebhookUrl`| Automation webhook URL                       | `http://duplo-automation:5000/alertmanager/webhook` |
 | `global.cloud`               | Cloud provider (e.g., aws, gcp)              | `""`                                                |
 | `global.duploReleaseBranch`  | Duplo release branch                         | `main`                                              |
@@ -259,6 +259,31 @@ global:
 | `secrets.grafanaUI.password` | Grafana UI admin password | `""`           |
 | `secrets.gpgPassphrase`      | Decrypts the central-Loki credentials baked into the `duplo-observability` image. Required by the [Observability Collector](#observability-collector-configuration) — the CronJob is not scheduled when this is empty. | `""` |
 
+
+## Alert Notifications
+
+Alert notification routing is **opt-in**. The `duplo-notification` integration is enabled by
+the bootstrap job only when **both** `global.slackWebhookUrl` and `global.oncallWebhookUrl`
+are non-empty. Setting just one of the two enables neither, because a Grafana notification
+policy is a single global object and cannot be split.
+
+When enabled, the integration provisions:
+
+- `duplo-aos-slack` Grafana contact point
+- `duplo-webhook-notifications` Grafana contact point (relays to the on-call webhook via `duplo-automation`)
+- the Grafana notification policy with all routes
+- the `AlertmanagerWebhookFailed` self-monitoring alert rule
+- the full Mimir Alertmanager config, including the `duplo-webhook-notifications` receiver
+
+When either value is empty, none of the above is created. `integration-duplo-bootstrap`
+still provisions a base Mimir Alertmanager config containing the default receiver and the
+always-on `duplo-loki-webhook` route, so alert archiving to Loki and the validation job's
+Alertmanager check both keep working.
+
+Note that the bootstrap job is a `post-install` hook only, so it does not re-run on
+`helm upgrade` — this is deliberate, to avoid overwriting a notification policy that has
+been customised after install. Changing these values on an existing cluster therefore
+requires re-running the bootstrap job or calling `/enable-integration` directly.
 
 ## Integration Job Configuration
 

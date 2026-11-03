@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.7.0](https://github.com/duplocloud/helm-charts/compare/aos-2.6.0...aos-v2.7.0) (2026-11-03)
+
+
+### Features
+
+* **aos:** make slack and oncall webhooks optional ([#54](https://github.com/duplocloud/helm-charts/issues/54)) ([d3b6584](https://github.com/duplocloud/helm-charts/commit/d3b6584c7e41f19814069addf4b2e5e7b4ccaa3f))
+
+
+### Bug Fixes
+
+* **aos:** skip observability collector CronJob without gpgPassphrase ([#55](https://github.com/duplocloud/helm-charts/issues/55)) ([5fe5e41](https://github.com/duplocloud/helm-charts/commit/5fe5e41f9357051595ea09c151b8d67b7d884286))
+
 ## [2.6.0](https://github.com/duplocloud/helm-charts/compare/aos-2.5.2...aos-v2.6.0) (2026-09-22)
 
 
